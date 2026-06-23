@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-ktb-logo-full",
+    "localPath":  "app/assets/brand-ktb-logo-full-14e0f3147d.png",
+    "imageUrl":  "https://upload.wikimedia.org/wikipedia/en/thumb/f/f0/Krung_Thai_Bank_logo.svg/250px-Krung_Thai_Bank_logo.svg.png",
+    "sourcePage":  "https://en.wikipedia.org/wiki/Krungthai_Bank",
+    "usageRights":  "reference-only",
+    "attribution":  "Krungthai Bank PCL / Wikipedia, reference-only, trademark",
+    "retrievedAt":  "2026-06-23T05:00:51.682Z",
+    "mediaType":  "image/png",
+    "bytes":  16969,
+    "sha256":  "8999f9d796e7b162c32c88f5eea3fc55f0fd61031fe0931b74097d90c9474c1e",
+    "width":  250,
+    "height":  250,
+    "dominantColors":  [
+                           "#10B0F0",
+                           "#F0F0F0",
+                           "#30B0F0",
+                           "#D0F0F0",
+                           "#50D0F0",
+                           "#B0F0F0"
+                       ],
+    "analysisStatus":  "complete"
+}

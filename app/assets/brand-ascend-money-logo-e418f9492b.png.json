@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-ascend-money-logo",
+    "localPath":  "app/assets/brand-ascend-money-logo-e418f9492b.png",
+    "imageUrl":  "https://www.ascendcorp.com/wp-content/uploads/2023/12/logo-ascend-money-b-1-1.png",
+    "sourcePage":  "https://www.ascendcorp.com/our-business/ascend-money/",
+    "usageRights":  "reference-only",
+    "attribution":  "Ascend Money Group / ascendcorp.com, reference-only, trademark",
+    "retrievedAt":  "2026-06-23T05:04:49.009Z",
+    "mediaType":  "image/png",
+    "bytes":  9920,
+    "sha256":  "7d3207c7ad905de114a73df53e4e7299eb272581b06f5e18e15012b17efdf7c1",
+    "width":  353,
+    "height":  41,
+    "dominantColors":  [
+                           "#F03010",
+                           "#909090",
+                           "#B03030",
+                           "#703030",
+                           "#F01010",
+                           "#D03010"
+                       ],
+    "analysisStatus":  "complete"
+}

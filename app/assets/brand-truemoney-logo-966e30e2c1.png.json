@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-truemoney-logo",
+    "localPath":  "app/assets/brand-truemoney-logo-966e30e2c1.png",
+    "imageUrl":  "https://upload.wikimedia.org/wikipedia/commons/d/d2/True_Money_Logo.png",
+    "sourcePage":  "https://commons.wikimedia.org/wiki/File:True_Money_Logo.png",
+    "usageRights":  "reference-only",
+    "attribution":  "TrueMoney/Ascend Money / Wikimedia Commons CC BY 4.0 (trademark, reference-only use)",
+    "retrievedAt":  "2026-06-23T05:00:41.695Z",
+    "mediaType":  "image/png",
+    "bytes":  17082,
+    "sha256":  "cba29f464327ca3a3125159d55a5ad21adea7ab5d65aaea3c5d24cf314663574",
+    "width":  809,
+    "height":  379,
+    "dominantColors":  [
+                           "#F0F0F0",
+                           "#F01030",
+                           "#F09030",
+                           "#F0B070",
+                           "#F0D0D0",
+                           "#F0D0B0"
+                       ],
+    "analysisStatus":  "complete"
+}

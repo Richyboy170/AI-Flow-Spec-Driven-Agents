@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-ktb-logo",
+    "localPath":  "app/assets/brand-ktb-logo-2304c04400.png",
+    "imageUrl":  "https://krungthai.com/ImgUpload/media/ktb-logo.png",
+    "sourcePage":  "https://krungthai.com/en/about-ktb",
+    "usageRights":  "reference-only",
+    "attribution":  "Krungthai Bank PCL / reference-only, trademark",
+    "retrievedAt":  "2026-06-23T04:56:54.186Z",
+    "mediaType":  "image/png",
+    "bytes":  5255,
+    "sha256":  "ad0f53f2e00309cc3bba61d886e536426138ad92ba2d3bee7432babd0a80f6a1",
+    "width":  168,
+    "height":  65,
+    "dominantColors":  [
+                           "#F0F0F0",
+                           "#D0D0D0",
+                           "#B0B0B0",
+                           "#909090",
+                           "#D0B0B0",
+                           "#707070"
+                       ],
+    "analysisStatus":  "complete"
+}

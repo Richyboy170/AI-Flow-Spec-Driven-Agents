@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-ant-group-logo",
+    "localPath":  "app/assets/brand-ant-group-logo-7a25eea940.png",
+    "imageUrl":  "https://upload.wikimedia.org/wikipedia/en/thumb/d/de/Ant_Group_logo.png/250px-Ant_Group_logo.png",
+    "sourcePage":  "https://en.wikipedia.org/wiki/Ant_Group",
+    "usageRights":  "reference-only",
+    "attribution":  "Ant Group / Ant International / Wikipedia, reference-only, trademark",
+    "retrievedAt":  "2026-06-23T05:01:27.250Z",
+    "mediaType":  "image/png",
+    "bytes":  14245,
+    "sha256":  "5281d2c336949b46e2a3ed125a64449797347710e5ad4e0f6802f21d0e144bd6",
+    "width":  250,
+    "height":  107,
+    "dominantColors":  [
+                           "#1090F0",
+                           "#101010",
+                           "#1070F0",
+                           "#F0F0F0",
+                           "#10B0F0",
+                           "#D0F0F0"
+                       ],
+    "analysisStatus":  "complete"
+}

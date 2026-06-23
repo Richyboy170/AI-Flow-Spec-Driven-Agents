@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-bot-logo - Page image",
+    "localPath":  "app/assets/brand-bot-logo-page-image-383a4f8328.png",
+    "imageUrl":  "https://www.bot.or.th/content/dam/bot/logo/logo-top-white.png",
+    "sourcePage":  "https://www.bot.or.th/en/about-us/history/bot-logo.html",
+    "usageRights":  "reference-only",
+    "attribution":  "Bank of Thailand official website",
+    "retrievedAt":  "2026-06-23T04:49:34.782Z",
+    "mediaType":  "image/png",
+    "bytes":  20800,
+    "sha256":  "b8fbcdfc353f17ddd4852b9dff012aac078023490dd81d81f9b5dfdb094b6397",
+    "width":  900,
+    "height":  215,
+    "dominantColors":  [
+                           "#103050",
+                           "#F0F0F0",
+                           "#507070",
+                           "#305070",
+                           "#707090",
+                           "#709090"
+                       ],
+    "analysisStatus":  "complete"
+}

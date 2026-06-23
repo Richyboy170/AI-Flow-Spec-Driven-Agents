@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-ptt-or-logo",
+    "localPath":  "app/assets/brand-ptt-or-logo-8801736cb5.png",
+    "imageUrl":  "https://www.pttor.com/wp-content/uploads/2024/09/OR_Logo.png",
+    "sourcePage":  "https://www.pttor.com/en/",
+    "usageRights":  "reference-only",
+    "attribution":  "PTT Oil and Retail Business PCL / reference-only, trademark",
+    "retrievedAt":  "2026-06-23T04:58:03.747Z",
+    "mediaType":  "image/png",
+    "bytes":  23369,
+    "sha256":  "9594c350bc43320dba02834ce071695941a4f84fc8875fbdc637b530de94e48e",
+    "width":  405,
+    "height":  262,
+    "dominantColors":  [
+                           "#101070",
+                           "#10B0F0",
+                           "#F01030",
+                           "#1090D0",
+                           "#105090",
+                           "#103070"
+                       ],
+    "analysisStatus":  "complete"
+}

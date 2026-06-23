@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-kakaobank-logo - Open Graph image",
+    "localPath":  "app/assets/brand-kakaobank-logo-open-graph-image-871faae049.png",
+    "imageUrl":  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/KakaoBank_logo.svg/1280px-KakaoBank_logo.svg.png",
+    "sourcePage":  "https://commons.wikimedia.org/wiki/File:KakaoBank_logo.svg",
+    "usageRights":  "reference-only",
+    "attribution":  "KakaoBank Corp / Public Domain (PD-Textlogo, Wikimedia Commons)",
+    "retrievedAt":  "2026-06-23T04:56:23.953Z",
+    "mediaType":  "image/png",
+    "bytes":  26482,
+    "sha256":  "82ef67629f5b01c01dd85e147e9506979087d7c50c215ebff8465c05e4891125",
+    "width":  1280,
+    "height":  283,
+    "dominantColors":  [
+                           "#101010",
+                           "#F0F010",
+                           "#303010",
+                           "#909010",
+                           "#505010",
+                           "#B09010"
+                       ],
+    "analysisStatus":  "complete"
+}

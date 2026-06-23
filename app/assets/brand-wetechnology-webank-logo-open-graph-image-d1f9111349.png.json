@@ -1,0 +1,20 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-wetechnology-webank-logo - Open Graph image",
+    "localPath":  "app/assets/brand-wetechnology-webank-logo-open-graph-image-d1f9111349.png",
+    "imageUrl":  "https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/WeBank_Logo.svg/1280px-WeBank_Logo.svg.png",
+    "sourcePage":  "https://en.wikipedia.org/wiki/File:WeBank_Logo.svg",
+    "usageRights":  "reference-only",
+    "attribution":  "WeBank Technology Services (WeTechnology Ltd parent entity) / Wikipedia, PD-textlogo, reference-only, trademark",
+    "retrievedAt":  "2026-06-23T05:04:24.942Z",
+    "mediaType":  "image/png",
+    "bytes":  39044,
+    "sha256":  "d0f87bd92cdcf27e4775306f56670a21c71312f0f8a0e711b9b2263bdb81e873",
+    "width":  1280,
+    "height":  212,
+    "dominantColors":  [
+                           "#105090",
+                           "#D01010"
+                       ],
+    "analysisStatus":  "complete"
+}

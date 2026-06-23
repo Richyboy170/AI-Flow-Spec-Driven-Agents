@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Tidlor Reborn — Thailand's digital lending reimagined on-chain." />
+
+    <!-- Preload critical font if/when chosen in later waves -->
+    <!-- <link rel="preload" href="..." as="font" type="font/woff2" crossorigin /> -->
+
+    <title>Tidlor Reborn</title>
+
+    <!-- WebGL fallback styles are inlined here so they display
+         even before the JS bundle loads. -->
+    <style>
+      /* Critical reset — must be present before JS renders the canvas */
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden; /* hero is full-viewport; sections scroll added in next wave */
+        background: #0d0d14;
+      }
+      /* WebGL unavailable fallback — hidden by default, shown via JS */
+      #webgl-fallback {
+        display: none;
+        position: fixed;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 1.5rem;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        color: #e2e8f0;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        text-align: center;
+        padding: 2rem;
+      }
+      #webgl-fallback.visible { display: flex; }
+      #webgl-fallback h1 {
+        font-size: clamp(1.5rem, 5vw, 2.5rem);
+        font-weight: 700;
+        margin: 0;
+        color: #f8b400;
+      }
+      #webgl-fallback p {
+        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+        max-width: 38ch;
+        line-height: 1.6;
+        color: #cbd5e1;
+        margin: 0;
+      }
+      #webgl-fallback .icon {
+        font-size: 3rem;
+        line-height: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Full-viewport Three.js render target -->
+    <canvas id="hero-canvas"></canvas>
+
+    <!-- WebGL unavailable fallback — shown by webgl-detect.ts when WebGL is absent -->
+    <div id="webgl-fallback" role="alert" aria-live="assertive">
+      <div class="icon" aria-hidden="true">&#9651;</div>
+      <h1>Tidlor Reborn</h1>
+      <p>
+        Your browser doesn't support WebGL, which this experience requires.
+        Please try a modern browser such as Chrome, Firefox, or Edge.
+      </p>
+    </div>
+
+    <!-- Content sections — populated in the next wave -->
+    <main id="app">
+      <!-- TODO (next wave): hero, what-is, how-it-operates, thailand,
+           onchain-rails, news sections injected here by sections/*.ts -->
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

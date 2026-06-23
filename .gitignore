@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs and temp output
+*.log
+logs/
+.tmp/
+
+# Separate nested repositories
+sandbox/health-app/
+
+# Local deployment/tool caches
+.vercel/
+.vite/
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+*.local

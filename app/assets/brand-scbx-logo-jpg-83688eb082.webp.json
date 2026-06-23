@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "title": "brand-scbx-logo-jpg",
+  "localPath": "app/assets/brand-scbx-logo-jpg-83688eb082.webp",
+  "imageUrl": "https://www.scbx.com/wp-content/uploads/2023/09/scbx-logo.jpg",
+  "sourcePage": "https://www.scbx.com/en/about-scbx/company/",
+  "usageRights": "reference-only",
+  "attribution": "SCB X PCL / scbx.com official site, reference-only, trademark",
+  "retrievedAt": "2026-06-23T05:12:24.253Z",
+  "mediaType": "image/webp",
+  "bytes": 4198,
+  "sha256": "9003c78e91c0f975138bb6f7290c78acaba2cbc15246e7b2ecd2c2b033dbe1cd",
+  "width": null,
+  "height": null,
+  "dominantColors": [],
+  "analysisStatus": "pending-local-analysis"
+}
