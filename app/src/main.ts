@@ -4,14 +4,15 @@
  * Boot sequence:
  *   1. Import global styles.
  *   2. Initialise all content sections — always, regardless of WebGL.
- *   3. Attempt to start the Three.js hero scene; hide canvas if WebGL absent.
+ *   3. Attempt to start the Three.js hero scene; if WebGL is absent, hide the
+ *      canvas and show a slim non-blocking notice (content stays readable).
  *   4. Start the RAF render loop.
  *   5. Wire nav toggle and scroll-reveal observer.
  */
 
 import './style.css'
 
-import { isWebGLAvailable } from './lib/webgl-detect'
+import { isWebGLAvailable, showWebGLFallback } from './lib/webgl-detect'
 import { createHeroScene } from './scenes/heroScene'
 import { initHero }          from './sections/hero'
 import { initWhatIs }        from './sections/what-is'
@@ -34,9 +35,9 @@ appendFooter()
 if (isWebGLAvailable()) {
   bootScene()
 } else {
-  // Hide the blank canvas; the page is fully readable without the 3D backdrop.
-  const canvas = document.getElementById('hero-canvas') as HTMLCanvasElement | null
-  if (canvas) canvas.style.display = 'none'
+  // No WebGL: hide the blank canvas and show a non-blocking bottom notice.
+  // The page is fully readable without the 3D backdrop.
+  showWebGLFallback()
 }
 
 // ── Mobile nav toggle ────────────────────────────────────────────────────────

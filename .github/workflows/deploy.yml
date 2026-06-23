@@ -1,0 +1,76 @@
+name: Deploy to GitHub Pages
+
+# Builds the Vite app located in `app/` and publishes `app/dist` to GitHub Pages.
+# The app lives in a subdirectory of this repository, so every build/run step
+# uses `working-directory: app`.
+
+on:
+  push:
+    branches: [main]
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+# Permissions required by the official GitHub Pages deployment actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent Pages deployment; let in-progress runs finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Use the Node version pinned by the project (.nvmrc → 24.15.0) for
+          # parity with local development.
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      # Vite `base` MUST equal "/<repo-name>/" for a GitHub Pages *project* site
+      # (served at https://<user>.github.io/<repo-name>/). We inject it from the
+      # repository name at build time, so the deploy works no matter what the
+      # repo is named — no need to edit vite.config.ts when the name differs.
+      #
+      # NOTE: If you instead deploy to a *user/org* site (a repo named
+      # <user>.github.io, served at the domain root), change the flag to
+      # `--base=/` below.
+      - name: Build
+        run: npx vite build --base=/${{ github.event.repository.name }}/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Path is relative to the repository root (working-directory does not
+          # apply to composite actions), so the app/ prefix is required.
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

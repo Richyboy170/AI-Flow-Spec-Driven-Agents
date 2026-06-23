@@ -2,11 +2,14 @@ import { defineConfig } from 'vite'
 
 // ---------------------------------------------------------------------------
 // GitHub Pages deployment base path
-// This project deploys to: https://<user>.github.io/tidlor-reborn/
-// If the repository is ever renamed, update BASE_PATH to match the new
-// repo name (e.g., '/new-repo-name/').
-// For local dev served from root, Vite still handles this correctly via
-// the dev-server rewrite — no manual change needed for development.
+// This is the LOCAL default used by `npm run build` and `npm run preview`.
+// It assumes a project Pages site at: https://<user>.github.io/tidlor-reborn/
+//
+// In CI, .github/workflows/deploy.yml OVERRIDES this with
+// `vite build --base=/<repo-name>/`, derived from the actual repository name —
+// so the deployed build is always correct even if the repo is named differently
+// and you never have to edit this file. Update BASE_PATH below only if you want
+// `npm run preview` to match a different repo name locally.
 // ---------------------------------------------------------------------------
 const BASE_PATH = '/tidlor-reborn/'
 

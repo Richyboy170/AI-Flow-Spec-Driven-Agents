@@ -19,39 +19,38 @@
         padding: 0;
         background: #0d0d14;
       }
-      /* WebGL unavailable fallback — hidden by default, shown via JS */
+      /* WebGL unavailable notice — a slim, NON-BLOCKING bottom banner shown via
+         showWebGLFallback() (webgl-detect.ts) when WebGL is absent. It must not
+         cover the page: all educational content stays readable above it. */
       #webgl-fallback {
         display: none;
         position: fixed;
-        inset: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         align-items: center;
         justify-content: center;
-        flex-direction: column;
-        gap: 1.5rem;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        gap: 0.6rem;
+        background: rgba(15, 52, 96, 0.96);
         color: #e2e8f0;
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 0.85rem;
+        line-height: 1.4;
         text-align: center;
-        padding: 2rem;
-        z-index: 100;
+        padding: 0.6rem 1rem;
+        border-top: 1px solid rgba(248, 180, 0, 0.4);
+        z-index: 60;
       }
       #webgl-fallback.visible { display: flex; }
-      #webgl-fallback h2 {
-        font-size: clamp(1.5rem, 5vw, 2.5rem);
-        font-weight: 700;
-        margin: 0;
+      #webgl-fallback .icon {
         color: #f8b400;
+        font-size: 1rem;
+        line-height: 1;
+        flex-shrink: 0;
       }
       #webgl-fallback p {
-        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
-        max-width: 38ch;
-        line-height: 1.6;
-        color: #cbd5e1;
         margin: 0;
-      }
-      #webgl-fallback .icon {
-        font-size: 3rem;
-        line-height: 1;
+        max-width: 64ch;
       }
     </style>
   </head>
@@ -63,14 +62,13 @@
     <!-- Full-viewport Three.js render target -->
     <canvas id="hero-canvas" aria-hidden="true"></canvas>
 
-    <!-- WebGL unavailable notice — shown by webgl-detect.ts when WebGL is absent.
-         Content sections still render below this when WebGL is unavailable. -->
+    <!-- WebGL unavailable notice — shown by showWebGLFallback() in webgl-detect.ts.
+         Slim bottom banner; all content sections remain fully accessible above it. -->
     <div id="webgl-fallback" role="note" aria-label="Browser compatibility notice">
-      <div class="icon" aria-hidden="true">&#9651;</div>
-      <h2>3D Background Unavailable</h2>
+      <span class="icon" aria-hidden="true">&#9651;</span>
       <p>
-        Your browser doesn't support WebGL. The educational content below is fully
-        accessible — only the animated background is missing.
+        Your browser doesn&rsquo;t support WebGL, so the animated 3D background is hidden.
+        All educational content below remains fully accessible.
       </p>
     </div>
 
