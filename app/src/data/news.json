@@ -1,9 +1,47 @@
 [
   {
-    "_todo": "Replace with real news articles in the next wave.",
-    "id": "placeholder-1",
-    "title": "Tidlor Reborn Launches",
-    "date": "2026-06-23",
-    "excerpt": "Placeholder — fill in actual content in the next wave."
+    "id": "bot-vb-licences-jun2025",
+    "title": "Bank of Thailand Grants Three Virtual Bank Licences",
+    "date": "2025-06-27",
+    "source": "Bank of Thailand",
+    "sourceUrl": "https://www.bot.or.th",
+    "summary": "The Bank of Thailand approved three consortiums to operate licensed virtual banks in Thailand: SCBX/KakaoBank/WeBank, Krungthai Bank/Gulf/AIS/PTT OR, and Ascend Money/TrueMoney/Ant Group. Commercial launch is expected in 2026 after a mandatory preparation period.",
+    "tags": ["Thailand", "Regulation", "Licensing", "BOT"]
+  },
+  {
+    "id": "kakaobank-30m-aug2024",
+    "title": "KakaoBank Surpasses 30 Million Accounts in South Korea",
+    "date": "2024-08-07",
+    "source": "KakaoBank Investor Relations",
+    "sourceUrl": "https://ir.kakaobank.com",
+    "summary": "South Korea's KakaoBank, launched in 2017 as one of Asia's first internet-only banks, reported over 30 million account holders in mid-2024. The bank achieved record profitability, demonstrating the long-term commercial viability of branchless banking models.",
+    "tags": ["South Korea", "Milestone", "Profitability"]
+  },
+  {
+    "id": "nubank-100m-mar2024",
+    "title": "Nubank Reaches 100 Million Customers Across Latin America",
+    "date": "2024-03-14",
+    "source": "Nubank",
+    "sourceUrl": "https://international.nubank.com.br",
+    "summary": "Brazilian digital bank Nubank became the first virtual bank outside Asia to surpass 100 million customers, spanning Brazil, Mexico, and Colombia. Founded in 2013, Nubank's growth underscores global demand for low-fee, fully digital financial services.",
+    "tags": ["Latin America", "Milestone", "Financial Inclusion"]
+  },
+  {
+    "id": "webank-400m-2024",
+    "title": "WeBank Reports Over 400 Million Individual Customers Served",
+    "date": "2024-01-15",
+    "source": "WeBank",
+    "sourceUrl": "https://www.webank.com",
+    "summary": "WeBank, China's first internet-only bank founded by Tencent in 2015, reported cumulative individual customers exceeding 400 million. WeBank's AI-driven microloan products have been particularly transformative for small business owners and self-employed individuals.",
+    "tags": ["China", "Milestone", "AI", "Inclusion"]
+  },
+  {
+    "id": "singapore-digital-banks-2024",
+    "title": "Singapore's GXS Bank and MariBank Expand Consumer Products",
+    "date": "2024-02-20",
+    "source": "Monetary Authority of Singapore",
+    "sourceUrl": "https://www.mas.gov.sg",
+    "summary": "Singapore's two licensed digital retail banks — GXS Bank (Grab and Singtel) and MariBank (Sea Group) — broadened their offerings with consumer loans and competitive deposit rates in 2024, collectively attracting over 600,000 customers within two years of launch.",
+    "tags": ["Singapore", "Southeast Asia", "Expansion"]
   }
 ]

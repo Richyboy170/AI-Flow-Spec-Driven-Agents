@@ -1,7 +1,27 @@
 {
-  "_todo": "Replace with real on-chain snapshot data in the next wave.",
-  "chain": "TBD",
-  "totalLoans": 0,
-  "totalValueLocked": "0",
-  "lastUpdated": "2026-06-23T00:00:00Z"
+  "_note": "Illustrative educational content only — not live data. On-chain payment rails and stablecoins are a SEPARATE technology from licensed virtual banks and operate under a different regulatory framework.",
+  "conceptTitle": "Digital Money Rails: Stablecoins & Blockchain Settlement",
+  "analogyDisclaimer": "This section explains blockchain-based payment rails as an adjacent analogy — showing how digital value can move programmatically across networks. This is NOT describing the technology used by Thailand's licensed virtual banks, which operate on conventional banking infrastructure under Bank of Thailand supervision.",
+  "illustrativeExamples": [
+    {
+      "name": "Fiat-Pegged Stablecoins",
+      "description": "Digital tokens whose value is pegged 1:1 to a fiat currency (e.g., USD). Issued by private entities and backed by reserves. Enable programmable, near-instant value transfers on public blockchain networks.",
+      "illustrativeScale": "~$150 billion total market capitalisation across major stablecoins as of 2024.",
+      "regulatoryStatus": "Regulatory frameworks vary by jurisdiction. Singapore (MAS), the EU (MiCA), and the United States are developing or have enacted stablecoin-specific rules. Thailand's BOT is monitoring developments."
+    },
+    {
+      "name": "Blockchain Settlement Networks",
+      "description": "Public and permissioned blockchain networks used to settle stablecoin and tokenised asset transactions — often within seconds and at near-zero marginal cost across borders.",
+      "illustrativeScale": "Multi-trillion USD in annual on-chain stablecoin settlement volume (USDT, USDC) — used primarily by exchanges, institutional traders, and cross-border remittance providers.",
+      "regulatoryStatus": "Network-layer infrastructure is largely unregulated. Applications built on top (exchanges, custodians, payment apps) may fall under financial services regulations."
+    },
+    {
+      "name": "Retail Central Bank Digital Currencies (CBDCs)",
+      "description": "Government-issued digital currencies on central-bank-controlled ledgers. Fundamentally different from private stablecoins — CBDCs are direct central bank liabilities. Thailand's BOT has explored a CBDC through Project Inthanon and mBridge.",
+      "illustrativeScale": "Pilot programmes active in 130+ countries as of 2024 (BIS survey). No major economy has completed a full retail launch.",
+      "regulatoryStatus": "Fully regulated as central bank liabilities with legal tender status. Very different risk and trust profile from private stablecoins."
+    }
+  ],
+  "keyDistinction": "Thailand's three licensed virtual banks (approved June 2025) use conventional core banking infrastructure under direct Bank of Thailand supervision. Customer deposits are protected under the Deposit Protection Agency. On-chain rails are a separate fintech development that may eventually complement — but is not currently part of — Thailand's regulated virtual banking framework.",
+  "lastReviewed": "2025-06-23"
 }

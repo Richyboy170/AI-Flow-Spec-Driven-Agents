@@ -1,25 +1,22 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Tidlor Reborn — Thailand's digital lending reimagined on-chain." />
+    <meta name="description" content="An educational guide to virtual banking — what it is, how it works, and why Thailand's Bank of Thailand approved three licensed virtual banks in 2025." />
+    <meta property="og:title" content="Virtual Banking: Thailand's Next Financial Frontier" />
+    <meta property="og:description" content="Explore what virtual banks are, how they differ from fintech apps, and meet the three consortiums that received Thailand's first virtual banking licences." />
+    <meta property="og:type" content="website" />
 
-    <!-- Preload critical font if/when chosen in later waves -->
-    <!-- <link rel="preload" href="..." as="font" type="font/woff2" crossorigin /> -->
+    <title>Virtual Banking — An Educational Guide</title>
 
-    <title>Tidlor Reborn</title>
-
-    <!-- WebGL fallback styles are inlined here so they display
-         even before the JS bundle loads. -->
+    <!-- Critical inline styles: canvas backdrop and WebGL fallback only.
+         All other styles are in style.css, which is imported by main.ts. -->
     <style>
-      /* Critical reset — must be present before JS renders the canvas */
       *, *::before, *::after { box-sizing: border-box; }
       html, body {
         margin: 0;
         padding: 0;
-        height: 100%;
-        overflow: hidden; /* hero is full-viewport; sections scroll added in next wave */
         background: #0d0d14;
       }
       /* WebGL unavailable fallback — hidden by default, shown via JS */
@@ -36,9 +33,10 @@
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
         text-align: center;
         padding: 2rem;
+        z-index: 100;
       }
       #webgl-fallback.visible { display: flex; }
-      #webgl-fallback h1 {
+      #webgl-fallback h2 {
         font-size: clamp(1.5rem, 5vw, 2.5rem);
         font-weight: 700;
         margin: 0;
@@ -58,23 +56,54 @@
     </style>
   </head>
   <body>
-    <!-- Full-viewport Three.js render target -->
-    <canvas id="hero-canvas"></canvas>
 
-    <!-- WebGL unavailable fallback — shown by webgl-detect.ts when WebGL is absent -->
-    <div id="webgl-fallback" role="alert" aria-live="assertive">
+    <!-- Skip navigation for keyboard users -->
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <!-- Full-viewport Three.js render target -->
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+
+    <!-- WebGL unavailable notice — shown by webgl-detect.ts when WebGL is absent.
+         Content sections still render below this when WebGL is unavailable. -->
+    <div id="webgl-fallback" role="note" aria-label="Browser compatibility notice">
       <div class="icon" aria-hidden="true">&#9651;</div>
-      <h1>Tidlor Reborn</h1>
+      <h2>3D Background Unavailable</h2>
       <p>
-        Your browser doesn't support WebGL, which this experience requires.
-        Please try a modern browser such as Chrome, Firefox, or Edge.
+        Your browser doesn't support WebGL. The educational content below is fully
+        accessible — only the animated background is missing.
       </p>
     </div>
 
-    <!-- Content sections — populated in the next wave -->
-    <main id="app">
-      <!-- TODO (next wave): hero, what-is, how-it-operates, thailand,
-           onchain-rails, news sections injected here by sections/*.ts -->
+    <!-- Site header with in-page navigation -->
+    <header id="site-header" class="site-header" role="banner">
+      <nav class="site-nav container" aria-label="Site navigation">
+        <a href="#hero" class="nav-brand" aria-label="Virtual Banking Guide — back to top">
+          Virtual Banking Guide
+        </a>
+        <button
+          class="nav-toggle"
+          aria-expanded="false"
+          aria-controls="nav-menu"
+          aria-label="Open navigation menu"
+          type="button"
+        >
+          <span class="nav-toggle-bar" aria-hidden="true"></span>
+          <span class="nav-toggle-bar" aria-hidden="true"></span>
+          <span class="nav-toggle-bar" aria-hidden="true"></span>
+        </button>
+        <ul id="nav-menu" class="nav-links" role="list">
+          <li><a href="#what-is" class="nav-link">What is a Virtual Bank</a></li>
+          <li><a href="#how-it-operates" class="nav-link">How It Works</a></li>
+          <li><a href="#thailand" class="nav-link">Thailand 2025</a></li>
+          <li><a href="#onchain-rails" class="nav-link">Digital Rails</a></li>
+          <li><a href="#news" class="nav-link">News</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- All content sections are injected here by sections/*.ts -->
+    <main id="app" aria-label="Main content" tabindex="-1">
+      <span id="main-content" aria-hidden="true"></span>
     </main>
 
     <script type="module" src="/src/main.ts"></script>
