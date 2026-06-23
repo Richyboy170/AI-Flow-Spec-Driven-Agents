@@ -19,6 +19,7 @@ logs/
 
 # Separate nested repositories
 sandbox/health-app/
+sandbox/app/
 
 # Local deployment/tool caches
 .vercel/
