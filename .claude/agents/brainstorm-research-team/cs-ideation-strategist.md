@@ -3,7 +3,7 @@ name: cs-ideation-strategist
 description: Carson — divergent ideation specialist for app & website ideas. Facilitates interactive brainstorming sessions (100+ ideas through dialogue), shifting creative domain every 10 ideas to fight semantic clustering, then converges to a shortlist. Wraps the BMad brainstorming + brainstorming-coach + advanced-elicitation skills. INTERACTIVE — runs in the main thread with the user present; do NOT spawn as an autonomous fork. Hand off from cs-brainstorm-research-lead when the idea needs wide divergence before convergence.
 skills: bmad-brainstorming
 domain: brainstorm-research
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

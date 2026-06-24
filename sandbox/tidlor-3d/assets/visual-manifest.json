@@ -1,0 +1,367 @@
+[
+  {
+    "schemaVersion": 1,
+    "title": "Ngern Tid Lor / Tidlor primary wordmark (color)",
+    "category": "brand",
+    "localPath": "sandbox/tidlor-3d/assets/brand-primary-wordmark-color-81c4d43fb1.svg",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-primary-wordmark-color-81c4d43fb1.svg",
+    "imageUrl": "https://www.tidlorinvestor.com/themes/default/assets/static/images/logo.svg",
+    "sourcePage": "https://www.tidlorinvestor.com/en/corporate-information/general-information",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/svg+xml",
+    "bytes": 134776,
+    "sha256": "781cb9ff46252ef80eb2fdb1294d4ef54b4f8a9295618cac5d0cb05649793bdd",
+    "width": 154,
+    "height": 36,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#E32D26 (NTL red, x-ref lockup)",
+      "#0B4DA2 (NTL blue, x-ref lockup)"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: official corporate Ngern Tid Lor wordmark; SVG wraps an embedded base64 PNG (Adobe Photoshop authored) from the IR theme. Red+blue swirl symbol + wordmark. Analyzer cannot sample embedded-PNG colors (dominantColors empty); colors cross-referenced from heygoody lockup + banner."
+    },
+    "retrievedAt": "2026-06-23T09:36:21.122Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Ngern Tid Lor / Tidlor primary wordmark (white/mono)",
+    "category": "brand",
+    "localPath": "sandbox/tidlor-3d/assets/brand-primary-wordmark-white-6bcb919231.svg",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-primary-wordmark-white-6bcb919231.svg",
+    "imageUrl": "https://www.tidlorinvestor.com/themes/default/assets/static/images/logo-white.svg",
+    "sourcePage": "https://www.tidlorinvestor.com/en/corporate-information/general-information",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/svg+xml",
+    "bytes": 234823,
+    "sha256": "7f047189c7760087f67072d656c0c34f64c0759c9f5111c8c6a66d8ab6916e77",
+    "width": 175,
+    "height": 56,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#FFFFFF"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: white/knockout variant of the corporate wordmark for dark backgrounds; embedded-PNG SVG, 175x56."
+    },
+    "retrievedAt": "2026-06-23T09:36:21.985Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Tidlor corporate symbol (red+blue interlocking swirl)",
+    "category": "brand",
+    "localPath": "sandbox/tidlor-3d/assets/brand-symbol-swirl-element-6170845ab8.webp",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-symbol-swirl-element-6170845ab8.webp",
+    "imageUrl": "https://www.tidlorinvestor.com/storage/home/corporate-infomation/element.webp",
+    "sourcePage": "https://www.tidlorinvestor.com/en/home",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/webp",
+    "bytes": 13256,
+    "sha256": "65d13d45e2e8a2192ba11eb69e10295357fb8416bc4fdbcce902ec35db56cd32",
+    "width": null,
+    "height": null,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#E32D26 (red half)",
+      "#0B4DA2 (blue half)"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: isolated corporate symbol only (no wordmark) - two interlocking comma/swirl shapes forming an S/infinity, left red gradient + right blue gradient. Core shape to model in low-poly. System.Drawing cannot decode webp (OOM); dims/colors from visual inspection."
+    },
+    "retrievedAt": "2026-06-23T09:36:22.790Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "TIDLOR holdings brand banner (og-image)",
+    "category": "brand-world",
+    "localPath": "sandbox/tidlor-3d/assets/brand-world-tidlor-banner-f674902bc4.webp",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-world-tidlor-banner-f674902bc4.webp",
+    "imageUrl": "https://www.tidlorinvestor.com/themes/default/assets/static/images/default/og-image.webp",
+    "sourcePage": "https://www.tidlorinvestor.com/en/home",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/webp",
+    "bytes": 1343530,
+    "sha256": "d0f9a80f950f7197a8149820e2f0ba6131fa164aaccb4a12b27c7f5ee5ab5dd4",
+    "width": 1920,
+    "height": 1080,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#2E7BE0 (mid blue)",
+      "#1B5FCB",
+      "#FFFFFF (wordmark)",
+      "#E32D26 (symbol red)"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: official 1920x1080 banner - red+blue swirl symbol + white TIDLOR wordmark on blue gradient with flowing wave/particle texture. Strong low-poly-friendly background reference. webp decode OOM in analyzer; dims from og spec + curl content-length."
+    },
+    "retrievedAt": "2026-06-23T09:36:23.511Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Low-poly city/nature skyline (footer illustration)",
+    "category": "brand-world",
+    "localPath": "sandbox/tidlor-3d/assets/brand-world-lowpoly-skyline-0bc2d744f2.webp",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-world-lowpoly-skyline-0bc2d744f2.webp",
+    "imageUrl": "https://www.tidlorinvestor.com/themes/default/assets/static/images/default/footer/bg.webp",
+    "sourcePage": "https://www.tidlorinvestor.com/en/home",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/webp",
+    "bytes": 145656,
+    "sha256": "abebf327b61440df1c35e16998ea41be4ef568adc848b424986af7ae80078c90",
+    "width": null,
+    "height": null,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#1B4FB0 (deep blue sky)",
+      "#2E78E8",
+      "#5AA0F0 (light blue ground)"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: official flat/low-poly illustration of a blue city skyline with stylized trees and clouds - directly on-brand for a low-poly 3D site. Monochromatic blue gradient. webp decode OOM; visually inspected."
+    },
+    "retrievedAt": "2026-06-23T09:36:24.300Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "TIDLOR earnings-call key visual: 4 sub-brand lockups + 3D swirl",
+    "category": "brand-world",
+    "localPath": "sandbox/tidlor-3d/assets/brand-world-earnings-4subbrands-948b2823a2.jpg",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/brand-world-earnings-4subbrands-948b2823a2.jpg",
+    "imageUrl": "https://ngerntidlor.listedcompany.com/images/upload/img-en.jpg",
+    "sourcePage": "https://www.tidlorinvestor.com/en/home",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/jpeg",
+    "bytes": 299489,
+    "sha256": "eb31711554bf51a9b53274077181a54bf2353ff5f3afd272eb106c1dfaf2c545",
+    "width": 854,
+    "height": 590,
+    "dominantColorsAnalyzer": [
+      "#3070B0",
+      "#305090",
+      "#3090D0",
+      "#3050B0",
+      "#5090F0",
+      "#5070F0"
+    ],
+    "dominantColorsSemantic": [],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: blue key visual with white TIDLOR wordmark, a 3D-extruded low-poly version of the swirl symbol (excellent modeling ref), the 4-segment sub-brand color bar, and all four lockups: Ngern Tidlor, SHIELD INSURANCE, AREEGATOR, heygoody. This is where the SHIELD INSURANCE mark was visually confirmed (no standalone Shield site reachable)."
+    },
+    "retrievedAt": "2026-06-23T09:36:25.173Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Product/service ecosystem: branch, vehicle fleet, app, sub-brands",
+    "category": "product",
+    "localPath": "sandbox/tidlor-3d/assets/product-ecosystem-vehicles-883663c419.jpg",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/product-ecosystem-vehicles-883663c419.jpg",
+    "imageUrl": "https://www.tidlorinvestor.com/storage/content/corporate-information/nature-of-business/img-2.jpg",
+    "sourcePage": "https://www.tidlorinvestor.com/en/corporate-information/nature-of-business",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/jpeg",
+    "bytes": 229537,
+    "sha256": "d8120ec64fb9dde97f995f3b49aa5e9b12586d47440b21b691c278df09f4578f",
+    "width": 656,
+    "height": 394,
+    "dominantColorsAnalyzer": [
+      "#103070",
+      "#103090",
+      "#F0F0F0",
+      "#1070B0",
+      "#1030B0",
+      "#707070"
+    ],
+    "dominantColorsSemantic": [],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: definitive product/service collage on deep blue - physical branch storefront (red+blue swirl + GOLD ประกันติดล้อ mark), full vehicle title-loan fleet (box truck, sedan, 2 motorcycles, pickup), Tidjai app + cards, 1501 call-center agent w/ shield, heygoody + AREEGATOR marks. Proves ประกันติดล้อ still appears as the Thai consumer insurance mark alongside the English 'Shield Insurance' brand."
+    },
+    "retrievedAt": "2026-06-23T09:36:26.020Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Service center / digital experience photo",
+    "category": "product",
+    "localPath": "sandbox/tidlor-3d/assets/product-service-center-digital-307396cba6.png",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/product-service-center-digital-307396cba6.png",
+    "imageUrl": "https://www.tidlorinvestor.com/storage/content/corporate-information/nature-of-business/img-3.jpg",
+    "sourcePage": "https://www.tidlorinvestor.com/en/corporate-information/nature-of-business",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/png",
+    "bytes": 289916,
+    "sha256": "ad4a7fa3df6d9b20179355f260d3e05b982d0922d8dad69269f8a24e0c19c412",
+    "width": 461,
+    "height": 360,
+    "dominantColorsAnalyzer": [
+      "#F0F0F0",
+      "#B0D0F0",
+      "#90B0B0",
+      "#90D0F0",
+      "#70B0D0",
+      "#90B0D0"
+    ],
+    "dominantColorsSemantic": [],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: photographic scene of a man in a vehicle service bay with floating AR/data UI panels - brand-world/product-context photography (not a logo)."
+    },
+    "retrievedAt": "2026-06-23T09:36:26.845Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Areegator wordmark",
+    "category": "sub-brand",
+    "localPath": "sandbox/tidlor-3d/assets/subbrand-areegator-wordmark-4936d17d16.png",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/subbrand-areegator-wordmark-4936d17d16.png",
+    "imageUrl": "https://www.areegator.com/_next/image?url=%2Fimages%2Flogo.png&w=256&q=75",
+    "sourcePage": "https://www.areegator.com/",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/png",
+    "bytes": 20383,
+    "sha256": "587a8b9d837198dc5a7fb12b180c7ed78a2a189689ccf7379423a864d642f84b",
+    "width": 256,
+    "height": 102,
+    "dominantColorsAnalyzer": [
+      "#90D010",
+      "#1030B0",
+      "#103090",
+      "#10B0F0",
+      "#1070D0",
+      "#30B030"
+    ],
+    "dominantColorsSemantic": [],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: genuine Areegator brand wordmark - green/blue overlapping-leaves device + Thai lettering. Distinct from the partner-insurer logos that auto-discovery mis-grabbed (Bangkok Insurance/Viriyah/Tokio Marine/Muangthai/Thanachart - all rejected)."
+    },
+    "retrievedAt": "2026-06-23T09:36:27.664Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "Areegator stacked symbol/lockup (IR-hosted)",
+    "category": "sub-brand",
+    "localPath": "sandbox/tidlor-3d/assets/subbrand-areegator-symbol-stacked-6749735b82.png",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/subbrand-areegator-symbol-stacked-6749735b82.png",
+    "imageUrl": "https://www.tidlorinvestor.com/storage/content/corporate-information/nature-of-business/areegator.png",
+    "sourcePage": "https://www.tidlorinvestor.com/en/corporate-information/nature-of-business",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/png",
+    "bytes": 21929,
+    "sha256": "b154afc664072ba9e4646e8f7b8795e59df095d0e2ff958afb562be617dc6bbf",
+    "width": 233,
+    "height": 233,
+    "dominantColorsAnalyzer": [
+      "#F0F0F0",
+      "#1030B0",
+      "#90D010",
+      "#103090",
+      "#10B0F0",
+      "#1070D0"
+    ],
+    "dominantColorsSemantic": [],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: Areegator green/blue leaves symbol over blue base ellipse with Thai name below - stacked lockup variant, hosted on the official IR domain."
+    },
+    "retrievedAt": "2026-06-23T09:36:28.544Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "heygoody full lockup 'by Ngern Tid Lor' (color)",
+    "category": "sub-brand",
+    "localPath": "sandbox/tidlor-3d/assets/subbrand-heygoody-lockup-by-ntl-ec96680ffb.png",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/subbrand-heygoody-lockup-by-ntl-ec96680ffb.png",
+    "imageUrl": "https://www.heygoody.com/th/wp-content/uploads/2025/12/heygoody.png",
+    "sourcePage": "https://www.heygoody.com/th/home/",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/png",
+    "bytes": 64389,
+    "sha256": "69c7285cdbe9ab12b2d514f76f42b1ffe554352adb1975d218b119befd3b7af7",
+    "width": 3804,
+    "height": 1069,
+    "dominantColorsAnalyzer": [
+      "#10B070",
+      "#1070B0",
+      "#303030",
+      "#D03030",
+      "#F0F0F0",
+      "#3050B0"
+    ],
+    "dominantColorsSemantic": [
+      "#10B070 (heygoody green, analyzer)",
+      "#D03030 (NTL red, analyzer)",
+      "#1070B0 (NTL blue, analyzer)"
+    ],
+    "analysisStatus": "complete",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: heygoody green wordmark with the smiley-face glyph between hey and goody, plus 'by [full-color swirl + wordmark]' endorsement. Best single analyzer source for heygoody green AND quantized corporate red/blue."
+    },
+    "retrievedAt": "2026-06-23T09:36:29.372Z"
+  },
+  {
+    "schemaVersion": 1,
+    "title": "heygoody horizontal wordmark (cream/white)",
+    "category": "sub-brand",
+    "localPath": "sandbox/tidlor-3d/assets/subbrand-heygoody-wordmark-white-0da14c81f9.svg",
+    "localPathAbsolute": "C:/Users/cf306237/Desktop/Projects/tidlor-reborn/sandbox/tidlor-3d/assets/subbrand-heygoody-wordmark-white-0da14c81f9.svg",
+    "imageUrl": "https://www.heygoody.com/th/wp-content/uploads/2023/09/logo-horizontal-heygoody-on-black-by-ntl_header_.svg",
+    "sourcePage": "https://www.heygoody.com/th/home/",
+    "usageRights": "reference-only",
+    "attribution": "Tidlor Holdings PCL / Ngern Tid Lor PCL (official brand assets, captured for reference research only)",
+    "mediaType": "image/svg+xml",
+    "bytes": 7666,
+    "sha256": "690000815ffdefc39eadcc7e6975a7601645d42a98b1e109e14606f324935f9b",
+    "width": 133,
+    "height": 40,
+    "dominantColorsAnalyzer": [],
+    "dominantColorsSemantic": [
+      "#F1EFE3"
+    ],
+    "analysisStatus": "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\"",
+    "inspection": {
+      "method": "Read (visual decode)",
+      "verified": true,
+      "notes": "VERIFIED via Read: official heygoody horizontal wordmark in cream #F1EFE3 for dark backgrounds, with the smiley device. Clean vector."
+    },
+    "retrievedAt": "2026-06-23T09:36:30.177Z"
+  }
+]

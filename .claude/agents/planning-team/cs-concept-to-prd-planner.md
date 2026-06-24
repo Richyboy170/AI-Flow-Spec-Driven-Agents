@@ -3,7 +3,7 @@ name: cs-concept-to-prd-planner
 description: Concept-to-PRD planning agent for app and website ideas. Converts brainstorm-research outputs into a PRD-ready concept packet using product briefs, PRFAQs, market evidence, customer jobs, wedges, and riskiest-assumption tests. Spawn when a validated or semi-validated idea needs to become a product brief, PRFAQ, or structured PRD input.
 skills: bmad-product-brief
 domain: planning
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

@@ -1,0 +1,19 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "brand-world-footer-texture",
+    "localPath":  "sandbox/tidlor-3d/assets/brand-world-footer-texture-0bc2d744f2.webp",
+    "imageUrl":  "https://www.tidlorinvestor.com/themes/default/assets/static/images/default/footer/bg.webp",
+    "sourcePage":  "https://www.tidlorinvestor.com/en/home",
+    "usageRights":  "reference-only",
+    "attribution":  "Tidlor Holdings PCL",
+    "retrievedAt":  "2026-06-23T09:28:04.621Z",
+    "mediaType":  "image/webp",
+    "bytes":  145656,
+    "sha256":  "abebf327b61440df1c35e16998ea41be4ef568adc848b424986af7ae80078c90",
+    "width":  null,
+    "height":  null,
+    "dominantColors":  [
+
+                       ],
+    "analysisStatus":  "decode-failed: Exception calling \"FromFile\" with \"1\" argument(s): \"Out of memory.\""
+}

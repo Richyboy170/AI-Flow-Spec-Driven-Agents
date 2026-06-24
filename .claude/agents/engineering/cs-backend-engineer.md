@@ -1,6 +1,6 @@
 ---
 name: cs-backend-engineer
-model: sonnet
+model: opus
 description: Backend engineering orchestrator for API, data, service, integration, observability, and security stories. Picks backend language/pattern profiles when needed, and executes phase 4 backend stories from cs-engineering-lead using BMAD development and review workflows. Forks own context. Invoke via /cs:backend-review or Agent({subagent_type:"cs-backend-engineer",...}).
 skills: engineering-team/senior-backend
 domain: engineering

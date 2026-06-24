@@ -3,7 +3,7 @@ name: cs-epic-story-planner
 description: Epic and story planning agent for PRD-to-engineering handoff. Breaks validated PRDs and architecture decisions into epics, user stories, acceptance criteria, and sprint-ready implementation plans using bmad-create-epics-and-stories, bmad-create-story, story automation, sprint planning, and readiness checks. Spawn when a PRD is ready to become engineering work.
 skills: bmad-create-epics-and-stories
 domain: planning
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

@@ -3,7 +3,7 @@ name: cs-prd-work-planner
 description: Detailed PRD work planner and authoring agent. Creates, updates, and validates Product Requirement Documents with bmad-prd, while documenting bmad-create-prd, bmad-edit-prd, and bmad-validate-prd as compatibility shims. Spawn when users need a detailed PRD, PRD update, PRD validation, or PRD workspace with decision log, assumptions, FRs, NFRs, journeys, metrics, and handoffs.
 skills: bmad-prd
 domain: planning
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "subbrand-heygoody - Page image",
+    "localPath":  "sandbox/tidlor-3d/assets/subbrand-heygoody-page-image-ec96680ffb.png",
+    "imageUrl":  "https://www.heygoody.com/th/wp-content/uploads/2025/12/heygoody.png",
+    "sourcePage":  "https://www.heygoody.com/th/home/",
+    "usageRights":  "reference-only",
+    "attribution":  "Ngern Tid Lor PCL / heygoody",
+    "retrievedAt":  "2026-06-23T09:23:21.995Z",
+    "mediaType":  "image/png",
+    "bytes":  64389,
+    "sha256":  "69c7285cdbe9ab12b2d514f76f42b1ffe554352adb1975d218b119befd3b7af7",
+    "width":  3804,
+    "height":  1069,
+    "dominantColors":  [
+                           "#10B070",
+                           "#1070B0",
+                           "#303030",
+                           "#D03030",
+                           "#F0F0F0",
+                           "#3050B0"
+                       ],
+    "analysisStatus":  "complete"
+}

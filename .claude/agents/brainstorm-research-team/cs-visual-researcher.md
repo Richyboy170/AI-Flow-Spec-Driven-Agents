@@ -1,6 +1,6 @@
 ---
 name: cs-visual-researcher
-model: sonnet
+model: opus
 description: Autonomous visual-evidence and brand-asset researcher for app and website concepts. Finds relevant product, competitor, editorial, and brand references on the live web; maps named brands across their primary identity, main products, material sub-brands, and important related marks; downloads a rights-aware asset set into the generated project's root assets directory; inspects each image; extracts colors and visual patterns; and returns a reusable research pack for brainstorm, UX, planning, and engineering.
 domain: brainstorm-research
 context: fork

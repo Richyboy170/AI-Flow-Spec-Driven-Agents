@@ -1,0 +1,24 @@
+﻿{
+    "schemaVersion":  1,
+    "title":  "product-nature-of-business - Page image",
+    "localPath":  "sandbox/tidlor-3d/assets/product-nature-of-business-page-image-883663c419.jpg",
+    "imageUrl":  "https://www.tidlorinvestor.com/storage/content/corporate-information/nature-of-business/img-2.jpg",
+    "sourcePage":  "https://www.tidlorinvestor.com/en/corporate-information/nature-of-business",
+    "usageRights":  "reference-only",
+    "attribution":  "Tidlor Holdings PCL",
+    "retrievedAt":  "2026-06-23T09:31:34.841Z",
+    "mediaType":  "image/jpeg",
+    "bytes":  229537,
+    "sha256":  "d8120ec64fb9dde97f995f3b49aa5e9b12586d47440b21b691c278df09f4578f",
+    "width":  656,
+    "height":  394,
+    "dominantColors":  [
+                           "#103070",
+                           "#103090",
+                           "#F0F0F0",
+                           "#1070B0",
+                           "#1030B0",
+                           "#707070"
+                       ],
+    "analysisStatus":  "complete"
+}

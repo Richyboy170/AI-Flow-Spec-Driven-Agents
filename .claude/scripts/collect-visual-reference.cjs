@@ -123,7 +123,7 @@ async function fetchResource(value, maxBytes, accept, referer = "") {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new Error(`Image request failed with HTTP ${response.statusCode}.`);
     }
-    return { finalUrl: resolved.url, response, body };
+    return { finalUrl: resolved.url, response, body: decodeResponseBody(response, body) };
   }
   throw new Error("Download did not complete.");
 }
@@ -241,7 +241,7 @@ async function discoverPageVisuals(sourcePage, maxBytes) {
   if (!new Set(["text/html", "application/xhtml+xml"]).has(mediaType)) {
     throw new Error(`Source page returned ${mediaType || "no Content-Type"}, not HTML.`);
   }
-  const html = decodeResponseBody(fetched.response, fetched.body).toString("utf8");
+  const html = fetched.body.toString("utf8");
   return { finalPageUrl: fetched.finalUrl, ...extractPageVisuals(html, fetched.finalUrl) };
 }
 

@@ -1,6 +1,6 @@
 ---
 name: cs-frontend-engineer
-model: sonnet
+model: opus
 description: Frontend engineering orchestrator for app and website UI stories. Picks rendering/framework profiles when needed, and executes phase 4 frontend stories from cs-engineering-lead using BMAD development and review workflows. Forks own context. Invoke via /cs:frontend-review or Agent({subagent_type:"cs-frontend-engineer",...}).
 skills:
   - engineering-team/senior-frontend

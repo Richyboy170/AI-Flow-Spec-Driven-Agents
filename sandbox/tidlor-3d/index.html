@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เงินติดล้อ · Tidlor — Low-Poly 3D Explainer</title>
+  <meta name="description" content="An interactive low-poly 3D mini-world explaining เงินติดล้อ (Ngern Tid Lor / Tidlor): brand, products, company story, and how vehicle title loans work. Educational reference project." />
+  <!-- Generic geometric app icon in brand colors (not the official logo) to avoid a favicon 404 -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230B4DA2'/%3E%3Ccircle cx='12' cy='12' r='6' fill='%23E32D26'/%3E%3Ccircle cx='20' cy='20' r='6' fill='%232E7BE0'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- ================================================================== -->
+  <!-- STATIC FALLBACK BASELINE — real markup, visible by default.         -->
+  <!--                                                                      -->
+  <!-- This is the Tidlorland villages content (6 villages / 15 stations),  -->
+  <!-- authored in Thai (the default locale) so no-JS / no-WebGL users get  -->
+  <!-- the complete readable version with ZERO JavaScript. JS hides this    -->
+  <!-- ONLY if WebGL is available and the 3D scene mounts.                  -->
+  <!--                                                                      -->
+  <!-- i18n / TRANSLATION HOOK (owned by src/villages.js, called by main.js)-->
+  <!--   Every translatable node carries data-i18n-key="<i18n key>". Nodes  -->
+  <!--   that hold trusted static HTML also carry data-i18n-html. main.js    -->
+  <!--   calls translateFallback() (from villages.js) on init + on every     -->
+  <!--   'localechange' to retranslate this whole block. The static text     -->
+  <!--   below MUST stay equal to the 'th' value of each key.                -->
+  <!--                                                                      -->
+  <!--   Key namespaces used here:                                          -->
+  <!--     status.* hero.* footer.*           — chrome (i18n.js built-ins)   -->
+  <!--     world.stationsLabel                — section sublabels            -->
+  <!--     village.<id>.name                  — village heading (villages.js)-->
+  <!--     station.<vid>.<sid>.title / .body  — station copy   (villages.js) -->
+  <!-- ================================================================== -->
+  <main id="fallback" class="fallback">
+    <header class="fb-hero">
+      <img class="fb-logo" src="/src/assets/wordmark-color.png"
+           alt="เงินติดล้อ (Ngern Tid Lor / Tidlor) official wordmark" width="280" />
+      <h1 class="fb-title" data-i18n-key="hero.title">เงินติดล้อ</h1>
+      <p class="fb-tagline" data-i18n-key="hero.tagline">ผู้นำบริการการเงินที่เข้าถึงได้เพื่อทุกคน</p>
+      <p class="fb-note" id="fb-status" data-i18n-key="status.default">โหมด 3 มิติจะโหลดอัตโนมัติเมื่ออุปกรณ์รองรับ WebGL ด้านล่างคือเวอร์ชันแบบอ่านได้เต็มรูปแบบ</p>
+    </header>
+
+    <div class="fb-grid">
+
+      <!-- VILLAGE 1 · brand-symbol -->
+      <section class="fb-card" style="--accent:#E32D26">
+        <div class="fb-card-head"><span class="fb-num">01</span><h2 data-i18n-key="village.brand-symbol.name">ลานแบรนด์และสัญลักษณ์</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-symbol-swirl-element-6170845ab8.webp"
+               alt="สัญลักษณ์องค์กรเงินติดล้อ: ลาย swirl เกลียวสีแดงและน้ำเงินที่เกี่ยวกัน" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.brand-symbol.the-swirl.title">สัญลักษณ์เกลียวคู่ แดง-น้ำเงิน</h3>
+          <p data-i18n-key="station.brand-symbol.the-swirl.body">สัญลักษณ์ของเงินติดล้อคือเกลียวสองชิ้นประสานกัน ครึ่งแดงและครึ่งน้ำเงิน คล้ายรูปอินฟินิตี้ สื่อถึงการเคลื่อนไหวและโอกาสที่หมุนต่อเนื่อง สีหลักของแบรนด์คือแดงและน้ำเงินเข้ม</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-primary-wordmark-color-81c4d43fb1.svg"
+               alt="โลโก้และเวิร์ดมาร์กองค์กรเงินติดล้อ" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.brand-symbol.the-wordmark.title">โลโก้และเวิร์ดมาร์ก</h3>
+          <p data-i18n-key="station.brand-symbol.the-wordmark.body">เวิร์ดมาร์กองค์กรวางสัญลักษณ์เกลียวคู่ไว้คู่กับชื่อแบรนด์ มีทั้งเวอร์ชันสีและเวอร์ชันขาวสำหรับพื้นหลังเข้ม นี่คืออัตลักษณ์ภาพหลักของกลุ่มบริษัท</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-world-tidlor-banner-f674902bc4.webp"
+               alt="แบนเนอร์โลกของแบรนด์เงินติดล้อ: เกลียวคู่ 3 มิติบนพื้นไล่สีน้ำเงิน" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.brand-symbol.brand-world.title">โลกของแบรนด์</h3>
+          <p data-i18n-key="station.brand-symbol.brand-world.body">ภาพหลักของแบรนด์ใช้เกลียวคู่แบบ 3 มิติบนพื้นไล่สีน้ำเงิน พร้อมลายคลื่นและอนุภาคที่ลื่นไหล เป็นโทนที่เข้ากับงานโลว์โพลี 3 มิติของเว็บนี้พอดี</p>
+        </article>
+      </section>
+
+      <!-- VILLAGE 2 · company-listing -->
+      <section class="fb-card" style="--accent:#0B4DA2">
+        <div class="fb-card-head"><span class="fb-num">02</span><h2 data-i18n-key="village.company-listing.name">หมู่บ้านบริษัทและตลาดหลักทรัพย์</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-world-earnings-4subbrands-948b2823a2.jpg"
+               alt="ภาพคีย์วิชวลกลุ่มบริษัทเงินติดล้อพร้อมแบรนด์ย่อยทั้งสี่" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.company-listing.who-they-are.title">ใครคือ Tidlor Holdings</h3>
+          <p data-i18n-key="station.company-listing.who-they-are.body">บริษัทจดทะเบียนคือ Tidlor Holdings Public Company Limited เป็นบริษัทโฮลดิ้งที่ถือหุ้น 99.4% ใน บริษัท เงินติดล้อ จำกัด (มหาชน) ซึ่งเป็นบริษัทที่ทำธุรกิจสินเชื่อและนายหน้าประกันจริง (ที่มา: IR general-information, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-primary-wordmark-white-6bcb919231.svg"
+               alt="เวิร์ดมาร์กองค์กรเงินติดล้อเวอร์ชันขาว" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.company-listing.on-the-set.title">อยู่บนตลาดหลักทรัพย์ฯ</h3>
+          <p data-i18n-key="station.company-listing.on-the-set.body">หุ้นซื้อขายบนตลาดหลักทรัพย์แห่งประเทศไทย (SET) ด้วยชื่อย่อ TIDLOR โดย Tidlor Holdings เข้าจดทะเบียนเมื่อ 15 พฤษภาคม 2025 (ที่มา: IR, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-world-lowpoly-skyline-0bc2d744f2.webp"
+               alt="ภาพประกอบโลว์โพลีเส้นขอบฟ้าเมืองโทนน้ำเงิน" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.company-listing.the-story.title">เส้นทางของบริษัท</h3>
+          <p data-i18n-key="station.company-listing.the-story.body">ก่อตั้งปี 2006 ในชื่อ CFG Services Co., Ltd. เปลี่ยนชื่อเป็น เงินติดล้อ ในปี 2015 บริษัท เงินติดล้อ จำกัด (มหาชน) เริ่มซื้อขายบน SET วันแรก 10 พฤษภาคม 2021 ก่อนปรับโครงสร้างมาเป็น Tidlor Holdings ในปี 2025 (ที่มา: IR history, 24 มิ.ย. 2026)</p>
+        </article>
+      </section>
+
+      <!-- VILLAGE 3 · products-services -->
+      <section class="fb-card" style="--accent:#1B5FCB">
+        <div class="fb-card-head"><span class="fb-num">03</span><h2 data-i18n-key="village.products-services.name">หมู่บ้านผลิตภัณฑ์และบริการ</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/product-ecosystem-vehicles-883663c419.jpg"
+               alt="ระบบนิเวศผลิตภัณฑ์เงินติดล้อ: สาขา กลุ่มยานพาหนะ และแอปพลิเคชัน" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.products-services.title-loans.title">สินเชื่อทะเบียนรถ</h3>
+          <p data-i18n-key="station.products-services.title-loans.body">ธุรกิจหลักคือสินเชื่อที่ใช้ทะเบียนรถเป็นหลักประกัน ทั้งมอเตอร์ไซค์ รถยนต์ รถกระบะ และรถบรรทุก โดยลูกค้ายังใช้รถได้ตามปกติ มีสินเชื่อเช่าซื้อรถบรรทุกมือสองและสินเชื่อโฉนดที่ดินด้วย (ที่มา: IR nature-of-business, 24 มิ.ย. 2026) อัตราดอกเบี้ยและวงเงินเป็นเพียงตัวอย่างเท่านั้น</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/product-service-center-digital-307396cba6.png"
+               alt="ภาพศูนย์บริการและประสบการณ์ดิจิทัลของเงินติดล้อ" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.products-services.insurance-broking.title">นายหน้าประกัน</h3>
+          <p data-i18n-key="station.products-services.insurance-broking.body">อีกขาหนึ่งของธุรกิจคือนายหน้าประกันทั้งวินาศภัยและประกันชีวิต ขายทั้งแบบพบหน้าที่สาขาและแบบดิจิทัล ผ่านแบรนด์ในเครือหลายแบรนด์ (ที่มา: IR nature-of-business, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <h3 class="fb-station-title" data-i18n-key="station.products-services.digital-card.title">บัตรและช่องทางดิจิทัล</h3>
+          <p data-i18n-key="station.products-services.digital-card.body">ตั้งแต่ปี 2019 มีบัตรกดเงินสดหมุนเวียนที่กดผ่านตู้ ATM ธนาคารพันธมิตรได้ บริษัทรายงานว่าในปี 2025 ธุรกรรม 91% ใช้ E-Withdrawal หรือบัตรติดล้อ (ตัวเลขบริษัทแจ้งเอง)</p>
+        </article>
+      </section>
+
+      <!-- VILLAGE 4 · shield-insurance -->
+      <section class="fb-card" style="--accent:#0B4DA2">
+        <div class="fb-card-head"><span class="fb-num">04</span><h2 data-i18n-key="village.shield-insurance.name">หมู่บ้านชิลด์ ประกันภัย</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/brand-world-earnings-4subbrands-948b2823a2.jpg"
+               alt="ภาพคีย์วิชวลแสดงแบรนด์ Shield Insurance ในกลุ่มเงินติดล้อ" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.shield-insurance.shield-today.title">Shield Insurance วันนี้</h3>
+          <p data-i18n-key="station.shield-insurance.shield-today.body">Shield Insurance Broker คือแบรนด์นายหน้าประกันแบบพบหน้า ให้คำปรึกษาผ่านผู้เชี่ยวชาญในสาขาทั่วประเทศ บริษัทระบุว่ามีผู้เชี่ยวชาญกว่า 5,000 คน (ตัวเลขบริษัทแจ้งเอง ที่มา: IR nature-of-business, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/product-ecosystem-vehicles-883663c419.jpg"
+               alt="หน้าสาขาที่ยังมีป้ายทอง ประกันติดล้อ เป็นมรดกของแบรนด์" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.shield-insurance.prakan-tidlor-heritage.title">มรดก: ประกันติดล้อ</h3>
+          <p data-i18n-key="station.shield-insurance.prakan-tidlor-heritage.body">ก่อนจะเป็น Shield แบรนด์นี้ชื่อ ‘ประกันติดล้อ’ (Prakan TIDLOR) เปิดตัวปี 2022 และเปลี่ยนชื่อเป็น Shield Insurance ในปี 2024 ป้ายทองคำ ‘ประกันติดล้อ’ ยังพบเห็นได้ที่หน้าสาขาบางแห่งในฐานะมรดกของแบรนด์ (ที่มา: IR history, 24 มิ.ย. 2026)</p>
+        </article>
+      </section>
+
+      <!-- VILLAGE 5 · areegator -->
+      <section class="fb-card" style="--accent:#90D010">
+        <div class="fb-card-head"><span class="fb-num">05</span><h2 data-i18n-key="village.areegator.name">หมู่บ้านอารีเกเตอร์</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/subbrand-areegator-wordmark-4936d17d16.png"
+               alt="เวิร์ดมาร์ก Areegator ใบไม้สีเขียว-น้ำเงิน" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.areegator.areegator-platform.title">แพลตฟอร์มสำหรับตัวแทน</h3>
+          <p data-i18n-key="station.areegator.areegator-platform.body">Areegator เป็นแพลตฟอร์มออนไลน์สำหรับสมาชิกตัวแทน/นายหน้าย่อย เปิดตัวปี 2020 พร้อมแอปมือถือ ใช้สัญลักษณ์ใบไม้สีเขียว-น้ำเงิน บริษัทระบุว่ามีสมาชิกกว่า 10,000 ราย (ตัวเลขบริษัทแจ้งเอง ที่มา: IR, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/subbrand-areegator-symbol-stacked-6749735b82.png"
+               alt="สัญลักษณ์ Areegator แบบวางซ้อนพร้อมชื่อภาษาไทย" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.areegator.areegator-network.title">เครือข่ายบริษัทประกัน</h3>
+          <p data-i18n-key="station.areegator.areegator-network.body">Areegator ช่วยให้ตัวแทนเข้าถึงผลิตภัณฑ์จากบริษัทประกันชั้นนำหลายแห่ง บริษัทระบุว่าทำงานร่วมกับบริษัทประกันชั้นนำกว่า 15 แห่ง (ตัวเลขบริษัทแจ้งเอง ที่มา: IR nature-of-business, 24 มิ.ย. 2026)</p>
+        </article>
+      </section>
+
+      <!-- VILLAGE 6 · heygoody -->
+      <section class="fb-card" style="--accent:#10B070">
+        <div class="fb-card-head"><span class="fb-num">06</span><h2 data-i18n-key="village.heygoody.name">หมู่บ้านเฮ้ย์กู้ดดี้</h2></div>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/subbrand-heygoody-lockup-by-ntl-ec96680ffb.png"
+               alt="โลโก้ heygoody by Ngern Tid Lor พร้อมหน้ายิ้ม" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.heygoody.heygoody-digital.title">ประกันออนไลน์เต็มรูปแบบ</h3>
+          <p data-i18n-key="station.heygoody.heygoody-digital.body">heygoody คือแบรนด์ประกันออนไลน์ เปิดตัวปี 2023 บริษัทอธิบายว่าเป็นนายหน้าประกันออนไลน์ที่ไม่ใช้การโทรขาย (telesales-free) รายแรกในไทย โลโก้เป็นเวิร์ดมาร์กสีเขียวมีหน้ายิ้มอยู่ตรงกลาง (ข้อความ ‘รายแรก’ เป็นคำกล่าวอ้างของบริษัท ที่มา: IR history, 24 มิ.ย. 2026)</p>
+        </article>
+
+        <article class="fb-station">
+          <img class="fb-card-img" src="/src/assets/subbrand-heygoody-wordmark-white-0da14c81f9.svg"
+               alt="เวิร์ดมาร์ก heygoody สีครีม/ขาวสำหรับพื้นหลังเข้ม" loading="lazy" />
+          <h3 class="fb-station-title" data-i18n-key="station.heygoody.heygoody-traction.title">ผลตอบรับปี 2025</h3>
+          <p data-i18n-key="station.heygoody.heygoody-traction.body">บริษัทรายงานว่าในปี 2025 heygoody มีผู้เข้าชมกว่า 3.4 ล้านครั้ง และมีคะแนนความพึงพอใจลูกค้า 94% (ตัวเลขบริษัทแจ้งเอง ที่มา: IR nature-of-business, 24 มิ.ย. 2026)</p>
+        </article>
+      </section>
+
+    </div>
+
+    <footer class="fb-foot">
+      <p data-i18n-key="footer.note">โลโก้และสัญลักษณ์ที่แสดงเป็นเครื่องหมายทางการของ เงินติดล้อ (Ngern Tid Lor / Tidlor) ใช้เพื่อการศึกษา/อ้างอิงส่วนบุคคลเท่านั้น ไม่ได้รับอนุญาตให้ใช้เชิงพาณิชย์</p>
+    </footer>
+  </main>
+
+  <!-- 3D mount target + UI overlays live here; populated only if WebGL is available -->
+  <div id="app"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

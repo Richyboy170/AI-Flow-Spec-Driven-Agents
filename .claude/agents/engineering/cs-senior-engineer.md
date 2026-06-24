@@ -7,7 +7,7 @@ skills:
   - ckm:ui-styling
   - ckm:design-system
 domain: engineering
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

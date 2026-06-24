@@ -1,6 +1,6 @@
 ---
 name: cs-concept-synthesizer
-model: sonnet
+model: opus
 description: Autonomous concept-packaging specialist for app & website ideas. Takes the winning direction (the locked problem + ICP + wedge + research digests) and packages it into a decision-grade concept — an Amazon-style PRFAQ, a product brief, and a crisp narrative spine — using the BMad prfaq + product-brief + storytelling skill frameworks. Returns a ≤200-word digest. AUTONOMOUS — context: fork; spawn after divergence + research have converged on a direction. Forked from cs-brainstorm-research-lead as the final step (Q7 → shippable concept), feeding cs-product-manager / the planning team.
 skills: bmad-prfaq
 domain: brainstorm-research

@@ -3,7 +3,7 @@ name: cs-requirements-architect
 description: Requirements architecture agent for detailed PRDs. Turns concepts, briefs, PRFAQs, brainstorm digests, research, and user journeys into stable requirement structures: glossary, UJ IDs, FR IDs, NFRs, MVP scope, non-goals, assumptions, success metrics, and traceable handoff notes. Spawn when a planning effort needs rigorous requirement shaping before or during PRD creation.
 skills: bmad-agent-pm
 domain: planning
-model: sonnet
+model: opus
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 context: fork
 ---

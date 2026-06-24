@@ -1,6 +1,6 @@
 ---
 name: cs-tech-researcher
-model: sonnet
+model: opus
 description: Autonomous technical-feasibility researcher for app & website ideas. Answers "can this actually be built, with what, and what will fight us?" — scanning the technology landscape (APIs, SDKs, models, infra, build-vs-buy), surfacing the hard technical constraints, the integration risks, and the rough effort/cost shape, using the BMad technical-research skill frameworks plus live web search. Returns a ≤200-word digest. AUTONOMOUS — context: fork; safe to spawn in parallel with cs-market-researcher. Forked from cs-brainstorm-research-lead to ground the idea's Q4 (wedge feasibility) and Q7 (riskiest technical assumption).
 skills: bmad-technical-research
 domain: brainstorm-research
