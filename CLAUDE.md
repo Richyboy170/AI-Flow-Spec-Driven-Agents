@@ -68,6 +68,17 @@ If you see a `=== RESUME MILESTONE ===` block, read the referenced `MILESTONE.md
 continue from its `next` steps. Mark `status: "done"` when the work is finished so it stops
 being surfaced.
 
-To analyze how agents delegated in a session, use
-`node .claude/scripts/agent-trace.cjs trace --session latest`. See
+Per-project rule: milestone and delegation data belong INSIDE the project. When work
+targets a `sandbox/<name>` project (or any project dir), always pass `--project <dir>` so
+`MILESTONE.md`, `.agent-state/milestone.json`, and `.agent-state/activity.jsonl` are written
+there. After a meaningful chunk of delegated work on a project — and when you pause it —
+also write that project's delegation trace into it:
+
+```
+node .claude/scripts/agent-trace.cjs trace --session latest --project <project-dir>
+```
+
+This filters the session's delegations to that project and writes
+`<project-dir>/.agent-state/delegation-trace.{jsonl,md}`. To analyze a whole session
+repo-wide instead, run `agent-trace.cjs trace --session latest` without `--project`. See
 `.claude/scripts/AGENT-OBSERVABILITY.md` for the full reference.

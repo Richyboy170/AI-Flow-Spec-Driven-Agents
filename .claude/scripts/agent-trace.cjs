@@ -16,14 +16,22 @@
  *
  * Usage:
  *   node .claude/scripts/agent-trace.cjs sessions [--limit 20]
- *   node .claude/scripts/agent-trace.cjs trace [--session latest|<id>] [--json] [--out <file>] [--full-prompts]
- *   node .claude/scripts/agent-trace.cjs watch  [--session latest|<id>] [--interval 5]
+ *   node .claude/scripts/agent-trace.cjs trace [--session latest|<id>] [--project <dir>]
+ *        [--json] [--out <file>] [--full-prompts]
+ *   node .claude/scripts/agent-trace.cjs watch  [--session latest|<id>] [--project <dir>] [--interval 5]
+ *
+ * --project <dir> attributes/filters the session's delegations to one project
+ * (a delegation belongs to a project when the subagent's cwd is inside it OR the
+ * project path appears in the spawn prompt) and writes that project's trace into
+ *   <dir>/.agent-state/delegation-trace.jsonl   (structured events)
+ *   <dir>/.agent-state/delegation-trace.md      (rendered tree + timeline)
+ * It also reads <dir>/.agent-state/activity.jsonl for milestone markers.
  *
  * Options:
  *   --projects-dir <path>  Override the Claude Code projects directory.
- *   --cwd <path>           Resolve the project slug from this path instead of process.cwd().
- *   --json                 Emit a structured JSONL event log (one line per delegation).
- *   --out <file>           Where to write --json output (default .claude/logs/trace-<session>.jsonl).
+ *   --cwd <path>           Resolve the project slug / repo base from this path.
+ *   --json                 Emit a structured JSONL event log (default when --project).
+ *   --out <file>           Where to write --json output.
  *   --full-prompts         Do not truncate spawn prompts in the rendered tree.
  *
  * Never throws on bad data — best-effort parse, degrade gracefully.
@@ -34,6 +42,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const PROMPT_PREVIEW = 160;
+const MAIN = "__main__";
 
 function parseArgs(argv) {
   const flags = {};
@@ -66,9 +75,12 @@ function projectsDir(flags) {
   return path.join(os.homedir(), ".claude", "projects");
 }
 
+function repoBase(flags) {
+  return flags.cwd || process.cwd();
+}
+
 function sessionDir(flags) {
-  const cwd = flags.cwd || process.cwd();
-  return path.join(projectsDir(flags), projectSlug(cwd));
+  return path.join(projectsDir(flags), projectSlug(repoBase(flags)));
 }
 
 function readLinesSafe(file) {
@@ -85,6 +97,10 @@ function parseJsonSafe(line) {
   } catch {
     return null;
   }
+}
+
+function normPath(s) {
+  return String(s || "").replace(/\\/g, "/").toLowerCase();
 }
 
 function listSessions(flags) {
@@ -142,7 +158,6 @@ function resolveSessionId(flags) {
   const { sessions } = listSessions(flags);
   if (sessions.length === 0) return null;
   if (want === "latest") return sessions[0].id;
-  // allow prefix match
   const exact = sessions.find((s) => s.id === want);
   if (exact) return exact.id;
   const pref = sessions.find((s) => s.id.startsWith(want));
@@ -150,11 +165,10 @@ function resolveSessionId(flags) {
 }
 
 /*
- * Build the full delegation model for one session:
- *   - index every Agent/Task tool_use block across the main + all subagent transcripts
- *   - map each subagent (via meta.toolUseId) to the spawn block that created it
- *   - resolve each spawn's host transcript to an "actor" name
- *   - assemble parent->child edges + per-agent timing
+ * Build the full delegation model for one session: index every Agent/Task
+ * tool_use block across the main + all subagent transcripts, map each subagent
+ * (via meta.toolUseId) to the spawn block that created it, resolve each spawn's
+ * host transcript to an actor, and assemble parent->child edges + timing + cwd.
  */
 function buildModel(flags, sessionId) {
   const dir = sessionDir(flags);
@@ -165,24 +179,20 @@ function buildModel(flags, sessionId) {
     return { error: `Main transcript not found: ${mainFile}` };
   }
 
-  const MAIN = "__main__";
-
-  // file path -> actor label
   const fileActor = new Map();
   fileActor.set(mainFile, MAIN);
-
-  // toolUseId -> spawn info  (id of the Agent tool_use block)
-  const spawnById = new Map();
-  // actor file -> {firstTs, lastTs}
-  const timing = new Map();
+  const spawnById = new Map(); // toolUseId -> spawn info
+  const timing = new Map(); // file -> {firstTs, lastTs, cwd}
 
   function scanTranscript(file) {
     const lines = readLinesSafe(file);
     let firstTs = null;
     let lastTs = null;
+    let cwd = null;
     for (const line of lines) {
       const o = parseJsonSafe(line);
       if (!o) continue;
+      if (o.cwd && !cwd) cwd = o.cwd;
       if (o.timestamp) {
         if (!firstTs) firstTs = o.timestamp;
         lastTs = o.timestamp;
@@ -203,14 +213,12 @@ function buildModel(flags, sessionId) {
         }
       }
     }
-    timing.set(file, { firstTs, lastTs });
+    timing.set(file, { firstTs, lastTs, cwd });
   }
 
-  // 1. scan main transcript
   scanTranscript(mainFile);
 
-  // 2. discover subagents + their meta
-  const subagents = []; // {file, agentId, agentType, description, toolUseId, firstTs, lastTs}
+  const subagents = [];
   let metaFiles = [];
   try {
     metaFiles = fs.readdirSync(subDir).filter((f) => f.endsWith(".meta.json"));
@@ -220,9 +228,8 @@ function buildModel(flags, sessionId) {
   for (const mf of metaFiles) {
     const meta = parseJsonSafe(fs.readFileSync(path.join(subDir, mf), "utf8")) || {};
     const agentId = mf.replace(/\.meta\.json$/, "");
-    const jsonl = path.join(subDir, `${agentId}.jsonl`);
     subagents.push({
-      file: jsonl,
+      file: path.join(subDir, `${agentId}.jsonl`),
       agentId,
       agentType: meta.agentType || "(unknown)",
       description: meta.description || "",
@@ -230,27 +237,25 @@ function buildModel(flags, sessionId) {
     });
   }
 
-  // 3. scan each subagent transcript (collects nested spawns + timing)
   const agentTypeByFile = new Map();
   for (const s of subagents) {
     scanTranscript(s.file);
-    fileActor.set(s.file, s.agentId); // actor label for a subagent file = its agentId
+    fileActor.set(s.file, s.agentId);
     agentTypeByFile.set(s.file, s.agentType);
     const t = timing.get(s.file) || {};
     s.firstTs = t.firstTs;
     s.lastTs = t.lastTs;
+    s.cwd = t.cwd;
   }
 
-  // helper: resolve a host file to a human label
   function actorLabel(file) {
     if (file === mainFile) return { id: MAIN, type: "main", label: "main session (you / user-driven)" };
     const type = agentTypeByFile.get(file) || "(unknown)";
     return { id: fileActor.get(file) || file, type, label: type };
   }
 
-  // 4. build edges: parent (host of the spawn) -> child subagent
-  const nodes = new Map(); // id -> node
-  nodes.set(MAIN, { id: MAIN, type: "main", label: "main session (you / user-driven)", children: [], depth: 0, spawn: null });
+  const nodes = new Map();
+  nodes.set(MAIN, { id: MAIN, type: "main", label: "main session (you / user-driven)", children: [], depth: 0, spawn: null, cwd: null });
 
   const orphans = [];
   for (const s of subagents) {
@@ -260,35 +265,32 @@ function buildModel(flags, sessionId) {
       const pa = actorLabel(spawn.hostFile);
       parentId = pa.id;
       if (!nodes.has(parentId)) {
-        nodes.set(parentId, { id: parentId, type: pa.type, label: pa.label, children: [], depth: 0, spawn: null });
+        nodes.set(parentId, { id: parentId, type: pa.type, label: pa.label, children: [], depth: 0, spawn: null, cwd: null });
       }
     } else {
       orphans.push(s.agentId);
     }
-    const node = {
+    nodes.set(s.agentId, {
       id: s.agentId,
       type: s.agentType,
       label: s.agentType,
       children: [],
       depth: 0,
+      cwd: s.cwd,
       spawn: spawn
         ? { description: spawn.description, prompt: spawn.prompt, ts: spawn.ts, parentId }
         : { description: s.description, prompt: "", ts: s.firstTs, parentId: MAIN },
       firstTs: s.firstTs,
       lastTs: s.lastTs,
-    };
-    nodes.set(s.agentId, node);
+    });
   }
 
-  // link children
   for (const node of nodes.values()) {
     if (node.id === MAIN) continue;
-    const parentId = node.spawn ? node.spawn.parentId : MAIN;
-    const parent = nodes.get(parentId) || nodes.get(MAIN);
+    const parent = nodes.get(node.spawn ? node.spawn.parentId : MAIN) || nodes.get(MAIN);
     parent.children.push(node);
   }
 
-  // compute depth + sort children by spawn time
   function assignDepth(node, depth) {
     node.depth = depth;
     node.children.sort((a, b) => String(a.spawn?.ts || "").localeCompare(String(b.spawn?.ts || "")));
@@ -296,7 +298,6 @@ function buildModel(flags, sessionId) {
   }
   assignDepth(nodes.get(MAIN), 0);
 
-  // flat chronological list of delegation events
   const events = [];
   for (const node of nodes.values()) {
     if (node.id === MAIN || !node.spawn) continue;
@@ -355,16 +356,61 @@ function truncate(s, n) {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-// --- milestone events from the shared activity log (so "midway" markers show in the trace) ---
-function activityLogPath(flags) {
-  const repo = flags.repo || process.cwd();
-  return path.join(repo, ".claude", "logs", "agent-activity.jsonl");
+/*
+ * Attribute the session's delegations to one project. A node "directly belongs"
+ * to project P when its cwd is inside P or the project path appears in its spawn
+ * prompt/description. The in-scope set keeps each directly-matching node plus its
+ * ancestors (to show the chain) and its descendants (sub-work under P).
+ */
+function computeScope(model, projectDir, base) {
+  const pabs = normPath(path.resolve(projectDir));
+  const targets = [pabs];
+  const rel = normPath(path.relative(base, path.resolve(projectDir)));
+  if (rel && !rel.startsWith("..")) targets.push(rel);
+
+  const direct = new Map();
+  for (const node of model.nodes.values()) {
+    if (node.id === MAIN) {
+      direct.set(node.id, false);
+      continue;
+    }
+    const text = normPath([node.spawn && node.spawn.prompt, node.spawn && node.spawn.description, node.cwd].join(" "));
+    direct.set(node.id, targets.some((t) => t && text.includes(t)));
+  }
+
+  const descMatch = new Map();
+  (function postOrder(node) {
+    let m = direct.get(node.id) || false;
+    for (const c of node.children) if (postOrder(c)) m = true;
+    descMatch.set(node.id, m);
+    return m;
+  })(model.root);
+
+  const inScope = new Set();
+  (function preOrder(node, ancMatch) {
+    const self = direct.get(node.id) || false;
+    if (self || ancMatch || descMatch.get(node.id)) inScope.add(node.id);
+    const childAnc = ancMatch || self;
+    for (const c of node.children) preOrder(c, childAnc);
+  })(model.root, false);
+
+  return inScope;
 }
 
-function readMilestoneEvents(flags, startTs) {
-  const file = activityLogPath(flags);
+function filterTree(node, inScope) {
+  return {
+    ...node,
+    children: node.children.filter((c) => inScope.has(c.id)).map((c) => filterTree(c, inScope)),
+  };
+}
+
+function activityRepoLog(flags) {
+  return path.join(repoBase(flags), ".claude", "logs", "agent-activity.jsonl");
+}
+
+function readMilestoneEvents(activityFile, startTs) {
   const out = [];
-  for (const line of readLinesSafe(file)) {
+  for (const line of readLinesSafe(activityFile)) {
     const o = parseJsonSafe(line);
     if (!o || !o.event) continue;
     if (!String(o.event).startsWith("milestone")) continue;
@@ -372,27 +418,6 @@ function readMilestoneEvents(flags, startTs) {
     out.push(o);
   }
   return out;
-}
-
-// ---------------------------------------------------------------------------
-
-function cmdSessions(flags) {
-  const { dir, sessions } = listSessions(flags);
-  if (sessions.length === 0) {
-    console.log(`No sessions found under:\n  ${dir}`);
-    return;
-  }
-  const limit = Number(flags.limit) || 20;
-  console.log(`Sessions in ${dir}\n`);
-  console.log(`${"SESSION".padEnd(38)} ${"UPDATED".padEnd(20)} ${"SUBAGENTS".padEnd(9)} FIRST MESSAGE`);
-  console.log("-".repeat(110));
-  for (const s of sessions.slice(0, limit)) {
-    const when = fmtTime(s.mtime.toISOString());
-    console.log(
-      `${s.id.padEnd(38)} ${when.padEnd(20)} ${String(s.subCount).padEnd(9)} ${firstUserText(s.file)}`
-    );
-  }
-  console.log(`\n(${sessions.length} session(s); showing ${Math.min(limit, sessions.length)}. Use --limit N.)`);
 }
 
 function renderTree(node, flags, prefix = "", isLast = true, isRoot = true) {
@@ -418,10 +443,94 @@ function renderTree(node, flags, prefix = "", isLast = true, isRoot = true) {
   }
   const childPrefix = isRoot ? "" : prefix + (isLast ? "   " : "│  ");
   node.children.forEach((ch, i) => {
-    const last = i === node.children.length - 1;
-    lines.push(...renderTree(ch, flags, childPrefix, last, false));
+    lines.push(...renderTree(ch, flags, childPrefix, i === node.children.length - 1, false));
   });
   return lines;
+}
+
+/* Build the full textual report (header + tree + timeline + counts) as lines. */
+function buildReport(model, root, events, flags, activityFile, scopeLabel) {
+  const L = [];
+  L.push("=".repeat(110));
+  L.push("AGENT DELEGATION TRACE");
+  L.push(`Session : ${model.sessionId}`);
+  if (scopeLabel) L.push(`Project : ${scopeLabel}`);
+  L.push(`Window  : ${fmtTime(model.sessionStart)}  ->  ${fmtTime(model.sessionEnd)}`);
+  L.push(`Delegations: ${events.length}` + (model.orphans.length ? `   (orphans: ${model.orphans.length})` : ""));
+  L.push("=".repeat(110));
+
+  L.push("");
+  L.push("DELEGATION TREE");
+  L.push("");
+  if (events.length === 0) {
+    L.push("  (no delegations" + (scopeLabel ? " attributed to this project" : "") + ")");
+  } else {
+    for (const l of renderTree(root, flags)) L.push(l);
+  }
+
+  L.push("");
+  L.push("TIMELINE");
+  L.push("");
+  const milestoneEvents = readMilestoneEvents(activityFile, model.sessionStart).map((m) => ({
+    ts: m.ts,
+    kind: "milestone",
+    label: `[MILESTONE ${String(m.event).replace("milestone-", "")}] ${m.project || ""} — ${m.title || ""}`.trim(),
+  }));
+  const delegEvents = events.map((e) => ({
+    ts: e.ts,
+    kind: "delegation",
+    label: `${e.fromId === MAIN ? "main" : "@" + e.from} -> @${e.to}${e.description ? `  (${truncate(e.description, 60)})` : ""}  [${fmtDuration(e.durationMs)}]`,
+  }));
+  const merged = [...delegEvents, ...milestoneEvents].sort((a, b) => String(a.ts || "").localeCompare(String(b.ts || "")));
+  if (merged.length === 0) {
+    L.push("  (nothing recorded)");
+  } else {
+    for (const e of merged) L.push(`  ${fmtTime(e.ts).slice(11)} ${e.kind === "milestone" ? "◆" : "|"} ${e.label}`);
+  }
+
+  L.push("");
+  L.push("DELEGATION COUNTS BY AGENT TYPE");
+  L.push("");
+  const counts = new Map();
+  for (const e of events) counts.set(e.to, (counts.get(e.to) || 0) + 1);
+  for (const [type, n] of [...counts.entries()].sort((a, b) => b[1] - a[1])) L.push(`  ${String(n).padStart(3)}  @${type}`);
+  const maxDepth = Math.max(0, ...events.map((e) => e.depth));
+  L.push(`\n  total delegations: ${events.length} · distinct agent types: ${counts.size} · max depth: ${maxDepth}`);
+  return L;
+}
+
+function eventsJsonl(model, events) {
+  return events
+    .map((e) =>
+      JSON.stringify({
+        ts: e.ts,
+        session: model.sessionId,
+        event: "delegation",
+        from: e.fromId === MAIN ? "main" : e.from,
+        to: e.to,
+        depth: e.depth,
+        description: e.description,
+        durationMs: e.durationMs,
+        prompt: e.prompt,
+      })
+    )
+    .join("\n");
+}
+
+function cmdSessions(flags) {
+  const { dir, sessions } = listSessions(flags);
+  if (sessions.length === 0) {
+    console.log(`No sessions found under:\n  ${dir}`);
+    return;
+  }
+  const limit = Number(flags.limit) || 20;
+  console.log(`Sessions in ${dir}\n`);
+  console.log(`${"SESSION".padEnd(38)} ${"UPDATED".padEnd(20)} ${"SUBAGENTS".padEnd(9)} FIRST MESSAGE`);
+  console.log("-".repeat(110));
+  for (const s of sessions.slice(0, limit)) {
+    console.log(`${s.id.padEnd(38)} ${fmtTime(s.mtime.toISOString()).padEnd(20)} ${String(s.subCount).padEnd(9)} ${firstUserText(s.file)}`);
+  }
+  console.log(`\n(${sessions.length} session(s); showing ${Math.min(limit, sessions.length)}. Use --limit N.)`);
 }
 
 function cmdTrace(flags) {
@@ -437,69 +546,45 @@ function cmdTrace(flags) {
     return;
   }
 
-  // header
-  console.log("=".repeat(110));
-  console.log(`AGENT DELEGATION TRACE`);
-  console.log(`Session : ${model.sessionId}`);
-  console.log(`Window  : ${fmtTime(model.sessionStart)}  ->  ${fmtTime(model.sessionEnd)}`);
-  console.log(`Subagents spawned: ${model.events.length}` + (model.orphans.length ? `   (orphans: ${model.orphans.length})` : ""));
-  console.log("=".repeat(110));
+  let root = model.root;
+  let events = model.events;
+  let activityFile = activityRepoLog(flags);
+  let scopeLabel = null;
+  let projectDir = null;
 
-  // delegation tree
-  console.log("\nDELEGATION TREE\n");
-  for (const l of renderTree(model.root, flags)) console.log(l);
-
-  // chronological timeline (delegations + milestone markers)
-  console.log("\nTIMELINE\n");
-  const milestoneEvents = readMilestoneEvents(flags, model.sessionStart).map((m) => ({
-    ts: m.ts,
-    kind: "milestone",
-    label: `[MILESTONE ${String(m.event).replace("milestone-", "")}] ${m.project || ""} — ${m.title || ""}`.trim(),
-  }));
-  const delegEvents = model.events.map((e) => ({
-    ts: e.ts,
-    kind: "delegation",
-    label: `${e.fromId === "__main__" ? "main" : "@" + e.from} -> @${e.to}${e.description ? `  (${truncate(e.description, 60)})` : ""}  [${fmtDuration(e.durationMs)}]`,
-  }));
-  const merged = [...delegEvents, ...milestoneEvents].sort((a, b) => String(a.ts || "").localeCompare(String(b.ts || "")));
-  if (merged.length === 0) {
-    console.log("  (no delegations recorded in this session)");
-  } else {
-    for (const e of merged) {
-      const tag = e.kind === "milestone" ? "◆" : "|";
-      console.log(`  ${fmtTime(e.ts).slice(11)} ${tag} ${e.label}`);
-    }
+  if (flags.project && flags.project !== true) {
+    projectDir = path.resolve(flags.project);
+    scopeLabel = projectDir;
+    const inScope = computeScope(model, projectDir, repoBase(flags));
+    root = filterTree(model.root, inScope);
+    events = model.events.filter((e) => inScope.has(e.toId));
+    activityFile = path.join(projectDir, ".agent-state", "activity.jsonl");
   }
 
-  // per-agent summary
-  console.log("\nDELEGATION COUNTS BY AGENT TYPE\n");
-  const counts = new Map();
-  for (const e of model.events) counts.set(e.to, (counts.get(e.to) || 0) + 1);
-  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  for (const [type, n] of sorted) console.log(`  ${String(n).padStart(3)}  @${type}`);
-  const maxDepth = Math.max(0, ...model.events.map((e) => e.depth));
-  console.log(`\n  total delegations: ${model.events.length} · distinct agent types: ${counts.size} · max depth: ${maxDepth}`);
+  const report = buildReport(model, root, events, flags, activityFile, scopeLabel);
+  console.log(report.join("\n"));
 
-  // structured JSONL output
-  if (flags.json) {
-    const out = flags.out || path.join(process.cwd(), ".claude", "logs", `trace-${model.sessionId}.jsonl`);
+  if (projectDir) {
+    // write this project's trace INTO the project
+    try {
+      const stateDir = path.join(projectDir, ".agent-state");
+      fs.mkdirSync(stateDir, { recursive: true });
+      const jsonl = eventsJsonl(model, events);
+      fs.writeFileSync(path.join(stateDir, "delegation-trace.jsonl"), jsonl + (jsonl ? "\n" : ""));
+      fs.writeFileSync(path.join(stateDir, "delegation-trace.md"), "```\n" + report.join("\n") + "\n```\n");
+      console.log(`\nProject trace written:`);
+      console.log(`  ${path.join(stateDir, "delegation-trace.jsonl")}  (${events.length} events)`);
+      console.log(`  ${path.join(stateDir, "delegation-trace.md")}`);
+    } catch (err) {
+      console.log(`\nFailed to write project trace: ${err.message}`);
+    }
+  } else if (flags.json) {
+    const out = flags.out || path.join(repoBase(flags), ".claude", "logs", `trace-${model.sessionId}.jsonl`);
     try {
       fs.mkdirSync(path.dirname(out), { recursive: true });
-      const lines = model.events.map((e) =>
-        JSON.stringify({
-          ts: e.ts,
-          session: model.sessionId,
-          event: "delegation",
-          from: e.fromId === "__main__" ? "main" : e.from,
-          to: e.to,
-          depth: e.depth,
-          description: e.description,
-          durationMs: e.durationMs,
-          prompt: e.prompt,
-        })
-      );
-      fs.writeFileSync(out, lines.join("\n") + (lines.length ? "\n" : ""));
-      console.log(`\nStructured event log written: ${out}  (${lines.length} events)`);
+      const jsonl = eventsJsonl(model, events);
+      fs.writeFileSync(out, jsonl + (jsonl ? "\n" : ""));
+      console.log(`\nStructured event log written: ${out}  (${events.length} events)`);
     } catch (err) {
       console.log(`\nFailed to write --json output: ${err.message}`);
     }
@@ -513,16 +598,14 @@ function cmdWatch(flags) {
     const sessionId = resolveSessionId(flags);
     if (!sessionId) return;
     const dir = sessionDir(flags);
-    const subDir = path.join(dir, sessionId, "subagents");
     let sig = sessionId;
     try {
-      const main = fs.statSync(path.join(dir, `${sessionId}.jsonl`));
-      sig += `:${main.mtimeMs}`;
+      sig += `:${fs.statSync(path.join(dir, `${sessionId}.jsonl`)).mtimeMs}`;
     } catch {
       /* ignore */
     }
     try {
-      for (const f of fs.readdirSync(subDir)) sig += `:${f}`;
+      for (const f of fs.readdirSync(path.join(dir, sessionId, "subagents"))) sig += `:${f}`;
     } catch {
       /* ignore */
     }
@@ -557,17 +640,17 @@ function main() {
             "agent-trace.cjs — analyze how agents delegate to other agents",
             "",
             "Commands:",
-            "  sessions [--limit N]                     list sessions (newest first)",
-            "  trace [--session latest|<id>] [--json]   render delegation tree + timeline",
-            "        [--out <file>] [--full-prompts]",
-            "  watch [--session latest|<id>] [--interval 5]   live re-render on change",
+            "  sessions [--limit N]                          list sessions (newest first)",
+            "  trace [--session latest|<id>] [--project <dir>]   delegation tree + timeline",
+            "        [--json] [--out <file>] [--full-prompts]",
+            "  watch [--session latest|<id>] [--project <dir>] [--interval 5]",
             "",
+            "--project <dir> filters to one project and writes its trace into <dir>/.agent-state/.",
             "Common: --cwd <path> --projects-dir <path>",
           ].join("\n")
         );
     }
   } catch (err) {
-    // never hard-crash; this may run from a hook / watch loop
     console.error(`agent-trace error: ${err && err.message ? err.message : err}`);
     process.exitCode = 1;
   }

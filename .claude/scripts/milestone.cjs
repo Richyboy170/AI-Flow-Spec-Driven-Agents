@@ -7,16 +7,18 @@
  * When you pause a session midway, the LLM saves a milestone INSIDE the project
  * (a human-readable MILESTONE.md + a machine-readable .agent-state/milestone.json).
  * Next time a session starts, the SessionStart hook surfaces it so agents pick up
- * exactly where work stopped. Every save/resume is also recorded in the shared
- * activity log (.claude/logs/agent-activity.jsonl) so it shows up in `agent-trace`.
+ * exactly where work stopped. Every save/resume is recorded in the project's own
+ * activity log (<project>/.agent-state/activity.jsonl) AND a repo-level roll-up
+ * (.claude/logs/agent-activity.jsonl), so it shows up in `agent-trace` — scoped to
+ * the project with `agent-trace trace --project <dir>`, or repo-wide without it.
  *
  * Commands:
  *   save    --project <path> [--stdin | --file <json>] [--title ..] [--goal ..]
  *           [--status in-progress|paused|blocked|done] [--branch ..]
  *           [--next "a||b"] [--completed "a||b"] [--blockers "a||b"]
  *           [--files "a||b"] [--context "a||b"] [--delegation ".."] [--notes ".."]
- *   show    --project <path>            print the saved milestone (read-only)
- *   resume  [--project <path>] [--quiet] print latest open milestone (used by SessionStart hook)
+ *   show    --project <path>             print the saved milestone (read-only)
+ *   resume  [--project <path>] [--hook] [--quiet]  print latest open milestone (SessionStart hook)
  *   list                                 list all registered milestones
  *
  * Array flags accept "||"-separated values. --stdin/--file expect a JSON object
@@ -77,7 +79,7 @@ function repoRoot(flags) {
   return flags.repo || process.cwd();
 }
 
-function activityLogPath(flags) {
+function repoActivityLog(flags) {
   return path.join(repoRoot(flags), ".claude", "logs", "agent-activity.jsonl");
 }
 
@@ -85,19 +87,27 @@ function registryPath(flags) {
   return path.join(repoRoot(flags), ".claude", "state", "milestone-registry.json");
 }
 
-function appendActivity(flags, record) {
+function appendLine(file, obj) {
   try {
-    const file = activityLogPath(flags);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.appendFileSync(file, JSON.stringify({ ts: nowIso(), ...record }) + "\n");
+    fs.appendFileSync(file, JSON.stringify(obj) + "\n");
   } catch {
     /* logging must never break the command */
   }
 }
 
+/*
+ * Dual-write the activity event: into the project's own .agent-state/activity.jsonl
+ * (so `agent-trace --project` sees it) and into the repo-level roll-up.
+ */
+function appendActivity(flags, record, projectDir) {
+  const event = { ts: nowIso(), ...record };
+  appendLine(repoActivityLog(flags), event);
+  if (projectDir) appendLine(path.join(projectDir, STATE_DIRNAME, "activity.jsonl"), event);
+}
+
 function resolveProject(flags) {
-  const p = flags.project || process.cwd();
-  return path.resolve(p);
+  return path.resolve(flags.project || process.cwd());
 }
 
 function statePaths(projectDir) {
@@ -142,49 +152,15 @@ function renderDoc(m) {
   lines.push(`- **Created:** ${m.createdAt}`);
   lines.push("");
   if (m.goal) {
-    lines.push("## Goal");
-    lines.push("");
-    lines.push(m.goal);
-    lines.push("");
+    lines.push("## Goal", "", m.goal, "");
   }
-  lines.push("## Next steps (continue here)");
-  lines.push("");
-  lines.push(bullets(m.next));
-  lines.push("");
-  lines.push("## Done so far");
-  lines.push("");
-  lines.push(bullets(m.completed));
-  lines.push("");
-  if (m.blockers && m.blockers.length) {
-    lines.push("## Blockers");
-    lines.push("");
-    lines.push(bullets(m.blockers));
-    lines.push("");
-  }
-  if (m.filesInFlight && m.filesInFlight.length) {
-    lines.push("## Files in flight");
-    lines.push("");
-    lines.push(bullets(m.filesInFlight));
-    lines.push("");
-  }
-  if (m.contextToLoad && m.contextToLoad.length) {
-    lines.push("## Context to load first");
-    lines.push("");
-    lines.push(bullets(m.contextToLoad));
-    lines.push("");
-  }
-  if (m.delegation) {
-    lines.push("## How to resume / delegation");
-    lines.push("");
-    lines.push(m.delegation);
-    lines.push("");
-  }
-  if (m.notes) {
-    lines.push("## Notes");
-    lines.push("");
-    lines.push(m.notes);
-    lines.push("");
-  }
+  lines.push("## Next steps (continue here)", "", bullets(m.next), "");
+  lines.push("## Done so far", "", bullets(m.completed), "");
+  if (m.blockers && m.blockers.length) lines.push("## Blockers", "", bullets(m.blockers), "");
+  if (m.filesInFlight && m.filesInFlight.length) lines.push("## Files in flight", "", bullets(m.filesInFlight), "");
+  if (m.contextToLoad && m.contextToLoad.length) lines.push("## Context to load first", "", bullets(m.contextToLoad), "");
+  if (m.delegation) lines.push("## How to resume / delegation", "", m.delegation, "");
+  if (m.notes) lines.push("## Notes", "", m.notes, "");
   lines.push("---");
   lines.push("<!-- machine-readable; do not hand-edit — use `milestone.cjs save` -->");
   lines.push("```json agent-milestone");
@@ -195,7 +171,6 @@ function renderDoc(m) {
 }
 
 function buildMilestone(flags) {
-  // base from --stdin / --file JSON, then override with flags
   let base = {};
   if (flags.stdin) {
     try {
@@ -244,7 +219,6 @@ function cmdSave(flags) {
   }
 
   fs.mkdirSync(stateDir, { recursive: true });
-  // archive the previous milestone before overwriting
   if (existing) {
     try {
       fs.appendFileSync(historyFile, JSON.stringify({ archivedAt: nowIso(), milestone: existing }) + "\n");
@@ -256,25 +230,28 @@ function cmdSave(flags) {
   fs.writeFileSync(docFile, renderDoc(m));
 
   updateRegistry(flags, m, jsonFile);
-  appendActivity(flags, {
-    event: "milestone-saved",
-    project: m.projectName,
-    projectPath: m.project,
-    title: m.title,
-    status: m.status,
-    nextCount: (m.next || []).length,
-  });
+  appendActivity(
+    flags,
+    {
+      event: "milestone-saved",
+      project: m.projectName,
+      projectPath: m.project,
+      title: m.title,
+      status: m.status,
+      nextCount: (m.next || []).length,
+    },
+    m.project
+  );
 
   console.log(`Milestone saved for "${m.projectName}" [${m.status}]`);
   console.log(`  doc : ${docFile}`);
   console.log(`  json: ${jsonFile}`);
+  console.log(`  log : ${path.join(stateDir, "activity.jsonl")}  (+ repo roll-up)`);
   console.log(`  next: ${(m.next || []).length} step(s)`);
-  console.log(`  logged to: ${activityLogPath(flags)}`);
 }
 
 function loadMilestone(projectDir) {
-  const { jsonFile } = statePaths(projectDir);
-  return readJsonSafe(jsonFile, null);
+  return readJsonSafe(statePaths(projectDir).jsonFile, null);
 }
 
 function cmdShow(flags) {
@@ -303,9 +280,7 @@ function compactResume(m) {
     lines.push(`Blockers:`);
     for (const s of m.blockers) lines.push(`  - ${s}`);
   }
-  if (m.contextToLoad && m.contextToLoad.length) {
-    lines.push(`Read first: ${m.contextToLoad.join(", ")}`);
-  }
+  if (m.contextToLoad && m.contextToLoad.length) lines.push(`Read first: ${m.contextToLoad.join(", ")}`);
   if (m.delegation) lines.push(`Resume via: ${m.delegation}`);
   lines.push(`Full detail: ${path.join(m.project, DOC_NAME)}`);
   lines.push(`=== END RESUME MILESTONE ===`);
@@ -320,14 +295,11 @@ function cmdResume(flags) {
       const m = loadMilestone(resolveProject(flags));
       if (m) candidates.push(m);
     } else {
-      // scan registry for the most recently updated, still-open milestone
       const reg = readJsonSafe(registryPath(flags), { projects: {} });
-      const entries = Object.values(reg.projects || {});
-      for (const e of entries) {
+      for (const e of Object.values(reg.projects || {})) {
         const m = e.milestonePath ? readJsonSafe(e.milestonePath, null) : null;
         if (m) candidates.push(m);
       }
-      // also try the current working directory directly
       const cwdMs = loadMilestone(process.cwd());
       if (cwdMs && !candidates.some((c) => c.project === cwdMs.project)) candidates.push(cwdMs);
     }
@@ -344,7 +316,6 @@ function cmdResume(flags) {
       .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 
     if (open.length === 0) {
-      // --hook: emit nothing so no empty context is injected at SessionStart.
       if (!flags.hook && !flags.quiet) console.log("(no open milestone to resume)");
       return;
     }
@@ -355,10 +326,9 @@ function cmdResume(flags) {
     }
 
     if (flags.hook) {
-      // SessionStart hook contract for Claude Code: stdout must be the JSON
-      // envelope below for the text to reach the model's context (plain stdout
-      // is not reliably injected). `additionalContext` (top-level) is the
-      // cross-CLI fallback. Matches the superpowers / ecc session-start hooks.
+      // SessionStart hook contract for Claude Code: stdout must be this JSON
+      // envelope for the text to reach the model's context (plain stdout is not
+      // reliably injected). Matches the superpowers / ecc session-start hooks.
       process.stdout.write(
         JSON.stringify({
           hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: text },
@@ -369,15 +339,13 @@ function cmdResume(flags) {
       console.log(text);
     }
 
-    appendActivity(flags, {
-      event: "milestone-resumed",
-      project: m.projectName,
-      projectPath: m.project,
-      title: m.title,
-      status: m.status,
-    });
+    appendActivity(
+      flags,
+      { event: "milestone-resumed", project: m.projectName, projectPath: m.project, title: m.title, status: m.status },
+      m.project
+    );
   } catch (err) {
-    if (!flags.quiet) console.error(`milestone resume: ${err.message}`);
+    if (!flags.hook && !flags.quiet) console.error(`milestone resume: ${err.message}`);
   }
 }
 
@@ -418,10 +386,10 @@ function main() {
           "",
           "Commands:",
           "  save   --project <path> [--stdin|--file f.json] [--title ..] [--goal ..]",
-          "         [--status paused] [--next \"a||b\"] [--completed ..] [--blockers ..]",
+          '         [--status paused] [--next "a||b"] [--completed ..] [--blockers ..]',
           "         [--files ..] [--context ..] [--delegation ..] [--notes ..]",
           "  show   --project <path>                 print saved milestone",
-          "  resume [--project <path>] [--quiet]     print latest open milestone (hook-friendly)",
+          "  resume [--project <path>] [--hook] [--quiet]   print latest open milestone",
           "  list                                    list all registered milestones",
         ].join("\n")
       );

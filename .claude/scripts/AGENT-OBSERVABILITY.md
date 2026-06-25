@@ -25,7 +25,17 @@ node .claude/scripts/agent-trace.cjs trace --session latest --full-prompts
 
 # live view: re-renders whenever the running session spawns/finishes an agent
 node .claude/scripts/agent-trace.cjs watch --session latest
+
+# PER-PROJECT: filter a session's delegations to one project and write the trace
+# INTO that project (sandbox/<name>/.agent-state/delegation-trace.{jsonl,md})
+node .claude/scripts/agent-trace.cjs trace --session latest --project sandbox/my-app
 ```
+
+A delegation is attributed to a project when the subagent's `cwd` is inside it OR the
+project path appears in the spawn prompt — so even research/planning subagents that ran
+from the repo root but were working on that project are included, while unrelated projects
+are excluded. The `--project` run also reads `sandbox/my-app/.agent-state/activity.jsonl`,
+so milestone `◆` markers for that project show up in its timeline.
 
 The **TIMELINE** section also interleaves milestone save/resume markers (`◆`) pulled
 from `.claude/logs/agent-activity.jsonl`, so a paused/resumed session shows up inline
