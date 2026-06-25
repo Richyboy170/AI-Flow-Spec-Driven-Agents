@@ -26,3 +26,48 @@ When a request names a real company/brand or asks for actual logos, product logo
 10. If official pages expose no downloadable image or access is blocked, report the attempted pages, uncovered brand-coverage items, and exact failure. Do not fabricate a replacement and call it official.
 
 This invariant is a pre-implementation gate. It does not require visual research for unrelated code-only work.
+
+## Multilingual brand and product research
+
+When the user explicitly says they want the work to be multi-language and the task involves researching products, services, sub-brands, campaigns, screenshots, assets, or UX from real brands:
+
+1. Discover the brand's official native-language names and official localized product/service names from authoritative sources before searching deeply.
+2. Search using the official native script and localized names for each requested or relevant language/market. Do not translate, romanize, abbreviate, or "localize" names from your own sense.
+3. Preserve exact official names, language/locale, source URL, and any official English/global name in the research artifact.
+4. If an official native/localized name cannot be verified, mark it `unknown` or `unverified`; do not invent a translation to fill the gap.
+5. Downstream planning may translate explanatory prose, but product and brand names must remain traceable to the official source names used during research.
+
+## UX/UI structure benchmark handoff
+
+For user-facing apps, websites, dashboards, portals, onboarding flows, or data visualization surfaces, research should produce a planning-ready benchmark before PRD/UX planning when the structure or journey is not already decided:
+
+1. Route through `cs-brainstorm-research-lead` / `cs-ux-structure-researcher` when possible.
+2. Write the benchmark as `{project_root}/research/ux-structure-benchmark-<date>.md`, or `design-artifacts/<concept-slug>/research/ux-structure-benchmark-<date>.md` when no project root exists.
+3. The benchmark must include top-tier app/site references, source-quality notes, IA and navigation findings, journey findings, UX/UI pattern cards, visualization/data-display findings when relevant, state coverage, use/avoid guidance, and a `Planning Connector` table.
+4. Planning agents must preserve `IA-#`, `JNY-#`, `PAT-#`, `VIZ-#`, and `DEC-#` connector IDs until they are mapped into final PRD `UJ-#`, `FR-#`, `NFR-#`, UX decisions, or explicit non-use decisions.
+5. If no UX benchmark is available for UI-bearing work, planning should record `UX benchmark: not available` with the reason rather than silently proceeding as if the research exists.
+
+## Pause / resume milestones
+
+When the user says to pause, stop for now, or continue later — or whenever a multi-step
+project is left unfinished — save a durable milestone INSIDE the project before stopping:
+
+```
+node .claude/scripts/milestone.cjs save --project <project-dir> --stdin
+```
+
+Pipe a JSON object with: `title`, `status` (`paused`/`in-progress`/`blocked`/`done`),
+`goal`, `branch`, `completed[]`, `next[]` (the exact ordered steps to continue),
+`blockers[]`, `filesInFlight[]`, `contextToLoad[]` (files to read first), `delegation`
+(which agent/team should resume and how), and `notes`. Write `next[]` so a fresh session
+can act on it without re-deriving context. This writes `<project>/MILESTONE.md` +
+`<project>/.agent-state/milestone.json` and logs the event to the activity log.
+
+On a new session, the `SessionStart` hook surfaces the latest open milestone automatically.
+If you see a `=== RESUME MILESTONE ===` block, read the referenced `MILESTONE.md` and
+continue from its `next` steps. Mark `status: "done"` when the work is finished so it stops
+being surfaced.
+
+To analyze how agents delegated in a session, use
+`node .claude/scripts/agent-trace.cjs trace --session latest`. See
+`.claude/scripts/AGENT-OBSERVABILITY.md` for the full reference.

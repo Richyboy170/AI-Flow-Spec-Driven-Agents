@@ -29,3 +29,8 @@ sandbox/app/
 .DS_Store
 Thumbs.db
 *.local
+
+# Agent observability / milestone runtime data (regenerated; not source)
+.claude/logs/
+.claude/state/
+.agent-state/
