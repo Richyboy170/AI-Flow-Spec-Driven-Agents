@@ -3,7 +3,7 @@ name: cs-karpathy-reviewer
 description: Reviews story implementation changes against Karpathy's 4 coding principles and complements BMAD code review. Runs complexity_checker on changed files, diff_surgeon on the diff, and produces a verdict with specific fix recommendations. Spawn before marking a story done, before committing, when the user says "karpathy check", "review my diff", or when cs-engineering-lead requests phase 4 review.
 skills: engineering/karpathy-coder
 domain: engineering
-model: opus
+model: sonnet
 tools: [Read, Bash, Grep, Glob, Skill]
 context: fork
 ---

@@ -3,7 +3,7 @@ name: cs-design-thinker
 description: Maya — human-centered design specialist for app & website ideas. Runs the five-phase design-thinking process (Empathize → Define → Ideate → Prototype → Test), turning a fuzzy idea into a validated, user-grounded concept with empathy maps, POV statements, How-Might-We questions, and a low-fi prototype-and-test plan. Wraps the BMad design-thinking + design-thinking-coach skills. INTERACTIVE — runs in the main thread with the user present; do NOT spawn as an autonomous fork. Hand off from cs-brainstorm-research-lead when the idea needs user grounding or a cheap prototype/test plan.
 skills: bmad-cis-design-thinking
 domain: brainstorm-research
-model: opus
+model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 

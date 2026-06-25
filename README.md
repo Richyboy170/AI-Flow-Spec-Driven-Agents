@@ -53,11 +53,11 @@ The lifecycle is intentionally gated. Agents do not just chat toward code; they 
 
 | Phase | Coordinator | Specialists | Primary Skills | Output Artifacts |
 | --- | --- | --- | --- | --- |
-| 1. Research and discovery | `cs-brainstorm-research-lead` | `cs-market-researcher`, `cs-tech-researcher`, `cs-problem-solver`, `cs-innovation-strategist`, `cs-visual-researcher`, `cs-concept-synthesizer`, plus `cs-design-thinker` / `cs-ideation-strategist` when interactive facilitation is needed | `bmad-brainstorming`, `bmad-market-research`, `bmad-domain-research`, `bmad-technical-research`, `bmad-prfaq`, `bmad-product-brief` | Locked problem and ICP, alternatives, evidence, wedge, risks, assumptions, validation test, visual manifest when applicable |
-| 2. PRD and requirements planning | `cs-planning-lead` | `cs-concept-to-prd-planner`, `cs-requirements-architect`, `cs-prd-work-planner`, `cs-evaluation-architect`, `cs-prd-quality-reviewer`, `cs-epic-story-planner` | `bmad-prd`, `bmad-ux`, `bmad-testarch-test-design`, `bmad-testarch-nfr`, `bmad-review-edge-case-hunter` | `prd.md`, `addendum.md`, `.decision-log.md`, FR/NFR/UJ IDs, evaluation spine, open questions |
+| 1. Research and discovery | `cs-brainstorm-research-lead` | `cs-market-researcher`, `cs-tech-researcher`, `cs-problem-solver`, `cs-innovation-strategist`, `cs-visual-researcher`, `cs-ux-structure-researcher`, `cs-concept-synthesizer`, plus `cs-design-thinker` / `cs-ideation-strategist` when interactive facilitation is needed | `bmad-brainstorming`, `bmad-market-research`, `bmad-domain-research`, `bmad-technical-research`, `bmad-ux`, `bmad-prfaq`, `bmad-product-brief` | Locked problem and ICP, alternatives, evidence, wedge, risks, assumptions, validation test, visual manifest and UX benchmark when applicable |
+| 2. PRD and requirements planning | `cs-planning-lead` | `cs-concept-to-prd-planner`, `cs-requirements-architect`, `cs-prd-work-planner`, `cs-evaluation-architect`, `cs-prd-quality-reviewer`, `cs-epic-story-planner` | `bmad-prd`, `bmad-ux`, `bmad-testarch-test-design`, `bmad-testarch-nfr`, `bmad-review-edge-case-hunter` | `prd.md`, `addendum.md`, `.decision-log.md`, FR/NFR/UJ IDs, UX benchmark traceability, evaluation spine, open questions |
 | 3. Architecture, stories, readiness | `cs-planning-lead` | Planning specialists plus architecture and story workflows | `bmad-create-architecture`, `bmad-agent-architect`, `bmad-create-epics-and-stories`, `bmad-create-story`, `bmad-story-automator-review`, `bmad-check-implementation-readiness`, `bmad-sprint-planning`, `bmad-sprint-status` | Architecture artifacts, ADR/design decisions, epics, ready-for-dev stories, `sprint-status.yaml`, readiness verdict |
 | 4. Story implementation | `cs-engineering-lead` | `cs-frontend-engineer`, `cs-backend-engineer`, `cs-fullstack-engineer`, `cs-senior-engineer`, `cs-karpathy-reviewer` | `bmad-dev-story`, `bmad-code-review`, `bmad-quick-dev`, `bmad-testarch-atdd`, `bmad-testarch-trace`, `bmad-testarch-test-review`, `bmad-checkpoint-preview` | Changed files, tests/checks run, implementation notes, file list, story status moved to review |
-| 5. Independent QA review | `cs-engineering-lead` | `code-reviewer`, `security-auditor`, `test-engineer`, `web-performance-auditor` | `code-review-and-quality`, `security-and-hardening`, `test-driven-development`, `performance-optimization`, `browser-testing-with-devtools` | Findings by severity, coverage gaps, security risks, performance risks, approve/request-changes verdict |
+| 5. Independent QA review | `cs-engineering-lead` | `code-reviewer`, `security-auditor`, `test-engineer`, `web-performance-auditor` | `code-review-and-quality`, `security-and-hardening`, `test-driven-development`, `browser-journey-audit`, `performance-optimization`, `browser-testing-with-devtools` | Findings by severity, runtime journey evidence, coverage gaps, security risks, performance risks, approve/request-changes verdict |
 
 ## Detailed Flow
 
@@ -71,6 +71,7 @@ flowchart LR
   Lead --> Problem[cs-problem-solver]
   Lead --> Innovation[cs-innovation-strategist]
   Lead --> Visual[cs-visual-researcher]
+  Lead --> UX[cs-ux-structure-researcher]
   Lead --> Synthesis[cs-concept-synthesizer]
   Lead --> Interactive[cs-design-thinker / cs-ideation-strategist]
 
@@ -79,10 +80,11 @@ flowchart LR
   Problem --> Packet
   Innovation --> Packet
   Visual --> Packet
+  UX --> Packet
   Synthesis --> Packet
 ```
 
-Expected output: locked problem, ICP, current alternatives, market and technical evidence, visual evidence when relevant, strategic wedge, key assumptions, contradictions, riskiest validation test, and artifact paths.
+Expected output: locked problem, ICP, current alternatives, market and technical evidence, visual evidence when relevant, UX/UI structure benchmark when relevant, strategic wedge, key assumptions, contradictions, riskiest validation test, and artifact paths.
 
 </details>
 
@@ -107,7 +109,7 @@ flowchart TD
   Readiness --> Ready
 ```
 
-Expected output: PRD workspace, requirements map, evaluation and verification spine, architecture artifacts, epics, stories, sprint status, implementation-readiness verdict, blockers, and recommended engineering routing.
+Expected output: PRD workspace, requirements map, UX benchmark connector mapping when applicable, evaluation and verification spine, architecture artifacts, epics, stories, sprint status, implementation-readiness verdict, blockers, and recommended engineering routing.
 
 </details>
 
@@ -197,7 +199,7 @@ Key files live under `engineering/workflow-builder/`:
 
 | Team | Location | Purpose |
 | --- | --- | --- |
-| Brainstorm research | `.claude/agents/brainstorm-research-team/` | Idea validation, research, concept synthesis, visual evidence capture. |
+| Brainstorm research | `.claude/agents/brainstorm-research-team/` | Idea validation, research, concept synthesis, visual evidence capture, and UX/UI structure benchmarking. |
 | Planning | `.claude/agents/planning-team/` | PRD creation, requirements architecture, evaluation spine, epics, stories, readiness. |
 | Engineering lead | `.claude/agents/engineering-team/` | Delegation-first coordinator for delivery across research, planning, implementation, and review. |
 | Engineering implementers | `.claude/agents/engineering/` | Frontend, backend, fullstack, senior engineer, and simplicity review agents. |
@@ -254,13 +256,14 @@ For deterministic workflow authoring:
 Non-trivial delivery is expected to pass through these gates:
 
 - Research packet accepted, with evidence and unresolved risks surfaced.
+- UI-bearing work includes visual evidence and UX benchmark paths when applicable, or an explicit not-applicable/not-available reason.
 - PRD or spec created and reviewed.
 - Requirements and acceptance criteria are traceable.
 - Evaluation spine exists before engineering starts.
 - Architecture and implementation-readiness checks are complete when architecture matters.
 - Stories are `ready-for-dev` before implementation.
 - Engineering work is reviewed by a different agent than the one that wrote it.
-- QA coverage includes code review, security, test strategy, and web-performance review when applicable.
+- QA coverage includes code review, security, test strategy, Playwright-backed browser journey verification for user-facing web work, and web-performance review when applicable.
 
 ## What To Ignore
 

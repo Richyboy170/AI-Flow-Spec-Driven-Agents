@@ -1,8 +1,8 @@
 # cs-engineering-lead — Delegation Decision Tree
 
 A command/decision tree for how `cs-engineering-lead` routes work. It encodes the
-spec in `cs-engineering-lead.md`: detect brand/asset work first, classify task
-size, then fan out per-team with a **≥4 autonomous specialists per team** floor.
+spec in `cs-engineering-lead.md`: detect brand/asset work first, detect creative
+wildcard intent, classify task size, then fan out per-team with a **≥4 autonomous specialists per team** floor.
 
 ---
 
@@ -30,6 +30,22 @@ USER REQUEST
 **Gate 0 is a pre-implementation hard stop.** "Single HTML file", "small visual
 edit", "draw a similar logo", or prompts with assumed brand colors do **not**
 bypass it. Implementation may still be small — *after* the manifest exists.
+
+**Gate 0B is the creative-intent detector.** Before size classification or direct
+implementation, mark `wildcard_requested=true` when novelty language modifies the
+desired app/site/program/MVP/experience/features/design: `crazy`, `weird`, `wild`,
+`wonderful`, `out of the box`, `out-of-box`, `unconventional`, `non-obvious`,
+`surprising`, `experimental`, `moonshot`, `memorable`, `delightful`, `playful`,
+`not boring`, `viral`, or requests for ideas/options. Example: "a great app maybe
+a crazy Expo Go MVP..." triggers wildcard routing even though it also asks to
+build in `sandbox/<name>`. Do not trigger for frustration language such as "this
+bug drives me crazy" unless the request also asks for a creative product concept.
+
+When `wildcard_requested=true`, route Phase 1 through `cs-brainstorm-research-lead`
+with an explicit requirement to invoke `cs-wildcard-ideator`. Do not proceed to
+PRD, architecture, or implementation until the user selects a concept from the
+wildcard/choice board or explicitly says to skip the board and build a specific
+concept anyway.
 
 ---
 
@@ -160,13 +176,16 @@ specialists *actually invoked*; naming one, or stopping at a team lead, doesn't 
 WAVE R — Phase 1 Research & Discovery
    └─ Agent(cs-brainstorm-research-lead)  ── must fan out ≥4:
         cs-market-researcher ║ cs-tech-researcher ║ cs-concept-synthesizer ║ cs-problem-solver
+        + cs-wildcard-ideator (REQUIRED when wildcard_requested=true)
         + cs-innovation-strategist (wedge/strategy)
         + cs-visual-researcher (REQUIRED for UI-bearing work)
         (interactive cs-design-thinker / cs-ideation-strategist: only when
          facilitation is material — NEVER force-forked to hit the count)
    └─ GATE: receipt shows <4 autonomous specialists without valid skip reasons?
+            or wildcard_requested=true but cs-wildcard-ideator was skipped?
             → reject handoff, backfill missing specialists directly, then accept.
-   └─ Bring concept + visual direction to USER for approval before Phase 2.
+   └─ Bring wildcard board (when triggered), concept, and visual direction to USER
+      for approval before Phase 2.
         │
         ▼
 WAVE P — Phase 2 PRD + Phase 3 Architecture/Readiness/Stories

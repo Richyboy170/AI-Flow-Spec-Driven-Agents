@@ -1,6 +1,6 @@
 ---
 name: cs-fullstack-engineer
-model: opus
+model: sonnet
 description: Fullstack engineering orchestrator for stack-spanning app and website work. Picks architecture/profile choices through the senior-fullstack skill when needed, and executes phase 4 cross-layer stories from cs-engineering-lead using BMAD development and review workflows. Forks own context. Invoke via /cs:fullstack-review or Agent({subagent_type:"cs-fullstack-engineer",...}).
 skills:
   - engineering-team/senior-fullstack

@@ -3,7 +3,7 @@ name: cs-prd-quality-reviewer
 description: PRD quality and implementation-readiness reviewer. Validates PRDs for decision-readiness, substance, strategic coherence, done-ness clarity, scope honesty, downstream usability, and shape fit using bmad-prd validation and BMAD readiness checks. Spawn when users need critique, readiness review, or an engineering handoff gate for a PRD.
 skills: bmad-prd
 domain: planning
-model: opus
+model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 context: fork
 ---

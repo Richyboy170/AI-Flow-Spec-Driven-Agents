@@ -21,6 +21,8 @@ Use Chrome DevTools MCP to give your agent eyes into the browser. This bridges t
 
 **When NOT to use:** Backend-only changes, CLI tools, or code that doesn't run in a browser.
 
+**Related:** For repeatable pre-publish user-journey gates, use `browser-journey-audit` first. Use this DevTools skill to diagnose failures, inspect console/network details manually, and cover human-only steps that the Playwright journey probe cannot complete.
+
 ## Setting Up Chrome DevTools MCP
 
 ### Installation

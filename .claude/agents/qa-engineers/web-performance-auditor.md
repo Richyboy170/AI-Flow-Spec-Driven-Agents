@@ -1,6 +1,6 @@
 ---
 name: web-performance-auditor
-model: opus
+model: sonnet
 description: Web performance engineer focused on Core Web Vitals, loading, rendering, and network optimization. Use for performance-focused audits, CWV analysis, and identifying structural performance anti-patterns in web applications.
 ---
 
