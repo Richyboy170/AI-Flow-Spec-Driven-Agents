@@ -45,7 +45,9 @@ When `wildcard_requested=true`, route Phase 1 through `cs-brainstorm-research-le
 with an explicit requirement to invoke `cs-wildcard-ideator`. Do not proceed to
 PRD, architecture, or implementation until the user selects a concept from the
 wildcard/choice board or explicitly says to skip the board and build a specific
-concept anyway.
+concept anyway. Forks cannot show the board to the user (no AskUserQuestion); the
+board must bubble up to the main thread, which prints it as text and captures the
+pick — see the IDEA-SELECTION GATE in §3.4 WAVE R.
 
 ---
 
@@ -184,8 +186,12 @@ WAVE R — Phase 1 Research & Discovery
    └─ GATE: receipt shows <4 autonomous specialists without valid skip reasons?
             or wildcard_requested=true but cs-wildcard-ideator was skipped?
             → reject handoff, backfill missing specialists directly, then accept.
-   └─ Bring wildcard board (when triggered), concept, and visual direction to USER
-      for approval before Phase 2.
+   └─ IDEA-SELECTION GATE (hard stop): when a wildcard/choice board exists, the user
+      MUST pick before Phase 2. This lead is a fork with no AskUserQuestion — do NOT
+      choose for the user and do NOT advance. Return the board upward (preserve the
+      `=== USER IDEA SELECTION REQUIRED ===` block) so the MAIN THREAD prints the full
+      board as text and captures the pick via AskUserQuestion. Resume Phase 2 only after
+      a user selection is recorded. (Visual direction is brought to the user the same way.)
         │
         ▼
 WAVE P — Phase 2 PRD + Phase 3 Architecture/Readiness/Stories

@@ -175,7 +175,7 @@ Do not trigger from unrelated frustration or severity language such as "this bug
 1. Route Phase 1 through `cs-brainstorm-research-lead` with `wildcard_requested: true`.
 2. Require `cs-wildcard-ideator` in the brainstorm wave after the problem and ICP are clear enough to brief it. It counts toward the brainstorm-research floor.
 3. Require the research packet to include the wildcard digest, the 6 wildcard slots, any 4 conventional slots used for the choice board, and the artifact path.
-4. Do not proceed to PRD, architecture, or implementation until the user has either selected a concept from the board or explicitly says to skip the board and build a specific concept anyway.
+4. Do not proceed to PRD, architecture, or implementation until the user has either selected a concept from the board or explicitly says to skip the board and build a specific concept anyway. **You are a fork with no `AskUserQuestion` tool — you cannot show the board to the user yourself.** If the brainstorm packet contains a choice board or a `=== USER IDEA SELECTION REQUIRED ===` block and no recorded user selection, do NOT pick for the user and do NOT advance to Phase 2. Stop and return the board upward (preserve the `=== USER IDEA SELECTION REQUIRED ===` block verbatim) so the main thread presents it via `AskUserQuestion` and blocks on the user's choice. Resume only after a user selection is recorded.
 5. If the brainstorm lead's receipt skips `cs-wildcard-ideator` without proving the trigger was a false positive, reject the handoff and dispatch `cs-wildcard-ideator` directly with the locked problem, ICP, boring default, constraints, platform target, and output folder.
 
 ### Phase 1: Research and Discovery
@@ -197,7 +197,7 @@ Do not trigger from unrelated frustration or severity language such as "this bug
    - source paths for any longer research artifacts
 5. For UI-bearing work, do not accept a visual handoff containing only adjectives or remote URLs. Require a local report and manifest, verify their paths exist, and ensure every reference has a source page plus usage-rights status. Reference-only or unknown-rights images are research evidence, never production assets. For UX benchmark work, require the Markdown report path and `Planning Connector` IDs or an explicit not-applicable/not-available reason. For multi-language brand/product research, require the native/localized name ledger or an explicit not-verified status.
 6. Do not start PRD work until the research packet is specific enough for planning to make requirements decisions.
-7. Bring the ideas, wildcard choice board when triggered, evidence-backed visual direction, and UX benchmark recommendations to the user before Phase 2 when they materially affect scope or experience. The user chooses the concept and approves or rejects proposed visual/UX direction; research must not silently become final design.
+7. Bring the ideas, wildcard choice board when triggered, evidence-backed visual direction, and UX benchmark recommendations to the user before Phase 2 when they materially affect scope or experience. The user chooses the concept and approves or rejects proposed visual/UX direction; research must not silently become final design. **When a choice board exists, surfacing it to the user is mandatory, not conditional — bubble it up to the main thread (see the idea-selection gate in step 4 of the wildcard trigger) so it is shown via `AskUserQuestion`. Never let a fork pick the concept or skip the terminal.**
 
 
 ### Phase 2: PRD Creation

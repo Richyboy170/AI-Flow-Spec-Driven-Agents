@@ -47,6 +47,44 @@ For user-facing apps, websites, dashboards, portals, onboarding flows, or data v
 4. Planning agents must preserve `IA-#`, `JNY-#`, `PAT-#`, `VIZ-#`, and `DEC-#` connector IDs until they are mapped into final PRD `UJ-#`, `FR-#`, `NFR-#`, UX decisions, or explicit non-use decisions.
 5. If no UX benchmark is available for UI-bearing work, planning should record `UX benchmark: not available` with the reason rather than silently proceeding as if the research exists.
 
+## Idea choice-board selection gate (HARD GATE — user must choose in the terminal)
+
+This is a blocking pre-implementation gate. It exists because the brainstorm-research
+and engineering subagents run as **forks** and have **no `AskUserQuestion` tool** — only
+the main thread can show an interactive choice in the terminal. If the choice board is
+not bubbled up to the main thread, the user never sees the options and selection is
+silently skipped. That must never happen.
+
+Trigger it whenever a brainstorm/research/engineering subagent produces a set of idea or
+concept options intended for the user to pick from — i.e. any wildcard/idea choice board,
+a "selection still required" payload, or a returned block marked
+`=== USER IDEA SELECTION REQUIRED ===`.
+
+When triggered, the **main thread** must:
+
+1. Stop before PRD, architecture, design, or implementation. Do not let a subagent pick
+   the concept on the user's behalf, and do not auto-advance to Phase 2.
+2. Show the **full board first as numbered Markdown text** — every card (e.g. all 6
+   wildcard + 4 conventional), each with its name and a one-line twist/wedge. Do not drop
+   or pre-rank cards away. Then call `AskUserQuestion` to capture the pick. Note
+   `AskUserQuestion` allows at most 4 options, so it cannot list 10 cards — use the chips
+   for the top recommendations plus a "show me the full list again / none of these" choice,
+   and rely on its always-present free-text "Other" so the user can type the number or name
+   of any card on the printed board. The point is that the whole board is visible in the
+   terminal and the user's choice is captured.
+3. **Block** until the user selects, or explicitly says to skip the board and build a named
+   concept anyway. Then continue with the chosen direction — if the work was being run by a
+   subagent (e.g. `cs-engineering-lead` returned the board and stopped), re-invoke that
+   subagent (`SendMessage` to continue it, or a fresh spawn) carrying the user's selection,
+   so Phase 2 resumes from the chosen concept.
+4. If a subagent returns having "decided" for the user, or hands off to synthesis/planning
+   without a recorded user selection, reject that handoff and run step 2 yourself before
+   proceeding.
+
+Subagents cannot satisfy this gate by themselves; they must **return** the board upward
+(see the `=== USER IDEA SELECTION REQUIRED ===` marker convention) and stop. Enforcement
+lives here, in the main thread.
+
 ## Pause / resume milestones
 
 When the user says to pause, stop for now, or continue later — or whenever a multi-step

@@ -93,11 +93,50 @@ Trigger it when a request names a real company/brand or asks for actual logos, p
 6. If official pages expose no downloadable images or access is blocked, return visual status `partial` with the attempted pages, uncovered coverage rows, and failure reasons. Do not silently replace the requested company assets with approximations.
 7. Pass the root assets directory, manifest, coverage summary, and selected local paths downstream. If a caller requires a single-file deliverable, the implementation may embed a downloaded file as a data URI only after provenance is recorded; it must not redraw a guessed substitute.
 
+### Mandatory idea-selection gate (the user MUST choose — never skip the terminal)
+
+This gate takes precedence over "move fast" and over any urge to hand the winning idea
+straight to synthesis, planning, or implementation. Whenever you assemble a set of idea or
+concept options for the user to pick from (a wildcard board, a merged 10-card choice board,
+or any "here are the directions" menu), the user's explicit selection is a **hard
+precondition** for every downstream step.
+
+Critically: **you have no `AskUserQuestion` tool, and when you run as a fork you have no
+interactive channel to the user at all.** You therefore cannot present the board yourself —
+if you try to "ask the user to choose" inside a fork, that prompt never reaches the
+terminal and the choice is silently lost. So:
+
+- **If you are running in the main thread** (the user is talking to you directly): present
+  the board and ask the user to choose before any handoff.
+- **If you are running as a fork** (spawned via the `Agent` tool by `cs-engineering-lead`
+  or another orchestrator): **do not** decide for the user and **do not** hand off to
+  `cs-concept-synthesizer`, planning, or implementation. Return the board upward as a
+  clearly-marked block and stop, so the main thread can present it:
+
+  ```markdown
+  === USER IDEA SELECTION REQUIRED ===
+  The user must choose one direction in the terminal before any PRD/design/build.
+  The main thread renders this whole board as numbered text, then captures the pick
+  with AskUserQuestion (which caps at 4 options, so it cannot list all cards — its
+  free-text "Other" lets the user type the number of any card below).
+  Board (list every card: 6 wildcard + up to 4 conventional):
+  1. <name> — <one-line twist/wedge>
+  2. <name> — <one-line twist/wedge>
+  ...
+  Default-if-skipped: <the one you'd recommend, only if the user opts to skip>
+  Board artifact path: <path>
+  === END USER IDEA SELECTION REQUIRED ===
+  ```
+
+In your returned packet, set the selection field to `selection still required` (never to a
+direction you picked yourself) until the user has actually chosen. Treat any handoff that
+skips this gate as invalid.
+
 ### Workflow 1: Raw spark → validated concept (the full loop)
 
 1. **Walk the 7 forcing-questions** — one per turn, tracked in `/tmp/idea-grill-<date>.md`. Surface kill criteria as they trip.
 2. **Diverge** — hand off to `cs-ideation-strategist` (interactive) to generate a wide field of ideas/angles before converging. Don't let the user lock the first idea.
-3. **Offer a wildcard choice board when requested** — if the user asks to see brainstormed options before implementation, asks for weird/crazy/out-of-box ideas, or wants a menu to choose from, fork `cs-wildcard-ideator` after problem + ICP are locked. Merge its 6 wildcard ideas with 4 conventional grounded options from the normal ideation/design/innovation path, then ask the user to choose before implementation handoff.
+3. **Offer a wildcard choice board when requested** — if the user asks to see brainstormed options before implementation, asks for weird/crazy/out-of-box ideas, or wants a menu to choose from, fork `cs-wildcard-ideator` after problem + ICP are locked. Merge its 6 wildcard ideas with 4 conventional grounded options from the normal ideation/design/innovation path, then route the merged board through the **Mandatory idea-selection gate** above — present it to the user in the main thread, or, if you are a fork, return the `=== USER IDEA SELECTION REQUIRED ===` block upward and stop. Do not hand off to implementation until the user has chosen.
 4. **Ground the riskiest gaps with research** — fork `cs-market-researcher` (is the market real? who else is there?) and, if buildability is uncertain, `cs-tech-researcher` (can this actually be built, with what?). These run autonomously and return digests plus artifact paths.
 5. **Ground the visual direction when the product has a UI or brand surface** — after the problem, ICP, form factor, and initial competitor set are known, fork `cs-visual-researcher`. Require a local visual report, a provenance manifest, inspected reference files, rights status, candidate semantic colors, theme/register, imagery/type/layout observations, use/avoid rules, and open decisions. Skip only for backend/API-only work and record `visual research: not applicable`.
 6. **Ground the UX/UI structure when the product has a user-facing experience** - after the problem, ICP, form factor, and initial competitor/category set are known, fork `cs-ux-structure-researcher`. Require a Markdown benchmark report with product/page structure, IA, user journey patterns, UX/UI pattern cards, visualization guidance, state coverage, source-quality audit, and planning connector IDs. Skip only for backend/API-only work and record `UX benchmark: not applicable`.
