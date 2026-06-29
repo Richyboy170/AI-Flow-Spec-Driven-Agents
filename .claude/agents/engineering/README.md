@@ -8,7 +8,7 @@ The Engineering agents execute phase 4 of the delivery flow owned by `../enginee
 2. The lead assigns exactly one ready story at a time to the right engineering agent.
 3. The assigned agent reads the story, PRD, architecture, readiness verdict, and sprint-status paths.
 4. Implementation uses `bmad-dev-story` when a story file exists.
-5. Review uses `bmad-code-review` and/or `cs-karpathy-reviewer` before the story is marked done.
+5. Review uses `bmad-code-review` and/or `code-reviewer` before the story is marked done.
 6. Review follow-ups go back to the implementing agent until resolved or explicitly deferred.
 7. The engineering agent returns a compact digest to `cs-engineering-lead`.
 
@@ -18,7 +18,7 @@ The Engineering agents execute phase 4 of the delivery flow owned by `../enginee
 - `cs-frontend-engineer` - UI, UX behavior, accessibility, rendering, browser tests, and web performance.
 - `cs-backend-engineer` - APIs, persistence, jobs, auth/session boundaries, integrations, observability, and migrations.
 - `cs-senior-engineer` - architecture-sensitive work, CI/CD, security, technical repair, and senior review.
-- `cs-karpathy-reviewer` - simplicity, diff-noise, and goal-driven execution review.
+- `code-reviewer` - five-axis quality review + Karpathy simplicity, diff-noise, and goal-driven execution review.
 
 ## BMAD Skills
 

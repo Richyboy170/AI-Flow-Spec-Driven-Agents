@@ -85,17 +85,20 @@ Stage checks by cost: fast lint/format and type checks before handoff, unit/comp
 ### Workflow 0: Phase 4 Frontend Story from `cs-engineering-lead`
 
 1. Accept the story path, PRD path, architecture path, UX/design paths if present, readiness verdict, sprint-status path, and root `assets/` directory plus visual manifest/approved local asset paths when the story involves a real brand or internet images.
-2. **Visual asset preflight when applicable:** read `{project_root}/assets/visual-manifest.json`, verify the named-brand coverage summary is complete or explicitly partial, verify every selected local file exists under the root asset pack, inspect it with `Read`, and confirm its rights/approval status. If the manifest is absent or empty, return `VISUAL_MANIFEST_MISSING` to `cs-engineering-lead` without editing. Do not invent an SVG/canvas/CSS/emoji substitute.
-3. Use the exact approved files in the product. Reference them as local assets, load them into canvas via `Image`, or embed their exact bytes as data URIs for a required single-file deliverable. Record the source manifest entry and return the implementation reference for each file.
-4. Read the story, acceptance criteria, UI states, a11y requirements, performance constraints, and test notes in full.
-5. Skip the seven-question frontend grill when the planning package already defines rendering, target devices, accessibility floor, and UX behavior.
-6. Use `bmad-dev-story` for implementation and update only the story sections that workflow permits.
-7. Request coordination through `cs-engineering-lead` only for API contract, data shape, auth/session, or integration dependencies.
-8. Verify the UI with the stack-specific loop above: lint/format checks, type checks, targeted tests, Playwright CLI or MCP browser checks when applicable, Chrome DevTools MCP evidence when debugging runtime behavior, and responsive/a11y review. Also verify each approved image is actually loaded/rendered; file presence alone is insufficient.
-9. Run `bmad-code-review` and `cs-karpathy-reviewer`; fix review follow-ups before done.
+2. **Read the `APPROVED_STACK` block first.** If `cs-engineering-lead` passes an `APPROVED_STACK` payload from `cs-tech-stack-guardian`, it is the authoritative tech choice for this project. The frontend approach (Web Components + TypeScript + Vite) is already decided — do not propose React, Vue, Next.js, or any other framework. Do not re-run the seven-question frontend grill for any category the `APPROVED_STACK` block covers.
+3. **Visual asset preflight when applicable:** read `{project_root}/assets/visual-manifest.json`, verify the named-brand coverage summary is complete or explicitly partial, verify every selected local file exists under the root asset pack, inspect it with `Read`, and confirm its rights/approval status. If the manifest is absent or empty, return `VISUAL_MANIFEST_MISSING` to `cs-engineering-lead` without editing. Do not invent an SVG/canvas/CSS/emoji substitute.
+4. Use the exact approved files in the product. Reference them as local assets, load them into canvas via `Image`, or embed their exact bytes as data URIs for a required single-file deliverable. Record the source manifest entry and return the implementation reference for each file.
+5. Read the story, acceptance criteria, UI states, a11y requirements, performance constraints, and test notes in full.
+6. Skip the seven-question frontend grill when the `APPROVED_STACK` block + planning package together define the relevant choices. Run it only for aspects genuinely not addressed by either.
+7. Use `bmad-dev-story` for implementation and update only the story sections that workflow permits.
+8. Request coordination through `cs-engineering-lead` only for API contract, data shape, auth/session, or integration dependencies.
+9. Verify the UI with the stack-specific loop above: lint/format checks, type checks, targeted tests, Playwright CLI or MCP browser checks when applicable, Chrome DevTools MCP evidence when debugging runtime behavior, and responsive/a11y review. Also verify each approved image is actually loaded/rendered; file presence alone is insufficient.
+10. Run `bmad-code-review` and `cs-karpathy-reviewer`; fix review follow-ups before done.
 10. Return a digest under 200 words: story path, changed files, asset-to-code reference map, tests/checks run, MCP evidence used, browser/a11y/perf checks, review result, unresolved risks, and next story recommendation.
 
 ### Workflow 1: New Frontend Profile
+
+**Important:** If `cs-engineering-lead` has passed an `APPROVED_STACK` block from `cs-tech-stack-guardian`, the frontend approach is already decided (Native Web Components + TypeScript + Vite). Do not run this workflow to re-open that decision. Use this workflow only for aspects not covered by the `APPROVED_STACK` block, such as component library choice within the approved Web Components standard or specific Vite plugin configuration.
 
 1. Walk the seven forcing questions when a frontend framework/rendering decision is actually needed: device/network, LCP target, rendering, bundle budget, SEO/auth, design system, WCAG.
 2. Track answers in `/tmp/frontend-grill-<date>.md`.
@@ -134,6 +137,9 @@ If unavailable, manually review simplicity, UI state coverage, a11y, and diff no
 
 ## Anti-Patterns
 
+- Proposing React, Vue, Next.js, or any SPA framework when the `APPROVED_STACK` block specifies Web Components + TypeScript + Vite.
+- Choosing a technology (framework, bundler, styling approach) that conflicts with the `APPROVED_STACK` block from `cs-tech-stack-guardian`.
+- Running the frontend grill for technology areas already covered by the `APPROVED_STACK` block.
 - Recommending a framework without device, rendering, SEO/auth, and performance constraints.
 - Re-asking the frontend grill when `cs-engineering-lead` provided a ready phase 4 story.
 - Shipping UI without empty, loading, error, success, and destructive-action states when relevant.
@@ -144,11 +150,12 @@ If unavailable, manually review simplicity, UI state coverage, a11y, and diff no
 
 ## Related Agents
 
-- [cs-engineering-lead](../engineering-team/cs-engineering-lead.md) -- phase 4 parent orchestrator
+- [cs-engineering-lead](../engineering-team/cs-engineering-lead.md) -- phase 4 parent orchestrator; passes the APPROVED_STACK block
+- [cs-tech-stack-guardian](../architecture-team/cs-tech-stack-guardian.md) -- issues the APPROVED_STACK verdict that overrides local frontend stack decisions
 - [cs-fullstack-engineer](cs-fullstack-engineer.md) -- cross-layer implementation
 - [cs-backend-engineer](cs-backend-engineer.md) -- API and backend dependencies
 - [cs-senior-engineer](cs-senior-engineer.md) -- architecture-sensitive or CI/CD work
-- [cs-karpathy-reviewer](cs-karpathy-reviewer.md) -- simplicity and diff-noise review
+- [code-reviewer](../qa-engineers/code-reviewer.md) -- five-axis quality + Karpathy simplicity and diff-noise review
 
 ## Invocation Contract
 

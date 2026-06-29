@@ -40,4 +40,4 @@ When called by `cs-engineering-lead`, return:
 
 ## BMAD PRD Skill Policy
 
-Use `bmad-prd` for new PRD work. `bmad-create-prd`, `bmad-edit-prd`, and `bmad-validate-prd` are compatibility shims that forward to `bmad-prd` create, update, and validate intents.
+Use `bmad-prd` for all PRD work — it detects create, update, and validate intent from the conversation automatically.

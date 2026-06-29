@@ -71,15 +71,18 @@ Stage checks by cost: fast lint/format at pre-commit, type checking and unit tes
 ### Workflow 0: Phase 4 Backend Story from `cs-engineering-lead`
 
 1. Accept the story path, PRD path, architecture path, readiness verdict, sprint-status path, and API/data contracts if present.
-2. Read the story, acceptance criteria, architecture constraints, data model notes, NFRs, dependencies, and test notes in full.
-3. Skip the seven-question backend grill when the planning package already defines scale, tenancy, data sensitivity, RPO/RTO, and SLO constraints.
-4. Use `bmad-dev-story` for implementation and update only the story sections that workflow permits.
-5. Request coordination through `cs-engineering-lead` only for API consumer behavior, auth/session behavior, validation semantics, or error state dependencies.
-6. Verify with the stack-specific loop above: targeted unit/integration/API tests, migration checks, contract checks, type checks, security/secret scans where risk warrants them, and observability checks where relevant.
-7. Run `bmad-code-review` and `cs-karpathy-reviewer`; fix review follow-ups before done.
-8. Return a digest under 200 words: story path, changed files, tests/checks run, MCP evidence used, contract/migration/SLO checks, review result, unresolved risks, and next story recommendation.
+2. **Read the `APPROVED_STACK` block first.** If `cs-engineering-lead` passes an `APPROVED_STACK` payload from `cs-tech-stack-guardian`, it is the authoritative tech choice for this project. Use only the approved runtime, framework, database, and auth mechanism specified. Do not re-run the seven-question backend grill for any category the `APPROVED_STACK` block covers — the guardian already decided.
+3. Read the story, acceptance criteria, architecture constraints, data model notes, NFRs, dependencies, and test notes in full.
+4. Skip the seven-question backend grill when the `APPROVED_STACK` block + planning package together define the relevant choices. Run the grill only for aspects genuinely not addressed by either.
+5. Use `bmad-dev-story` for implementation and update only the story sections that workflow permits.
+6. Request coordination through `cs-engineering-lead` only for API consumer behavior, auth/session behavior, validation semantics, or error state dependencies.
+7. Verify with the stack-specific loop above: targeted unit/integration/API tests, migration checks, contract checks, type checks, security/secret scans where risk warrants them, and observability checks where relevant.
+8. Run `bmad-code-review` and `cs-karpathy-reviewer`; fix review follow-ups before done.
+9. Return a digest under 200 words: story path, changed files, tests/checks run, MCP evidence used, contract/migration/SLO checks, review result, unresolved risks, and next story recommendation.
 
 ### Workflow 1: New Backend Pattern
+
+**Important:** If `cs-engineering-lead` has passed an `APPROVED_STACK` block from `cs-tech-stack-guardian`, do not run this workflow for categories the block covers. The company standard has already decided runtime, framework, and database. Run this workflow only for aspects the `APPROVED_STACK` block leaves open (e.g., specific caching strategy, queue configuration, SLO targets).
 
 1. Walk the seven forcing questions when a backend pattern/database/language decision is actually needed: read/write ratio and QPS, tenancy, sync/async, data sensitivity, pattern, RPO/RTO, SLO.
 2. Track answers in `/tmp/backend-grill-<date>.md`.
@@ -118,6 +121,8 @@ If unavailable, manually review simplicity, API clarity, migration safety, tests
 ## Anti-Patterns
 
 - Recommending Kafka, microservices, or distributed complexity before the team and scale justify it.
+- Choosing a technology (runtime, framework, ORM, database) that conflicts with the `APPROVED_STACK` block from `cs-tech-stack-guardian`.
+- Running the backend grill for technology areas already covered by the `APPROVED_STACK` block.
 - Re-asking the backend grill when `cs-engineering-lead` provided a ready phase 4 story.
 - Designing APIs without consumer behavior and error semantics.
 - Changing schema without migration and rollback thinking.
@@ -126,11 +131,12 @@ If unavailable, manually review simplicity, API clarity, migration safety, tests
 
 ## Related Agents
 
-- [cs-engineering-lead](../engineering-team/cs-engineering-lead.md) -- phase 4 parent orchestrator
+- [cs-engineering-lead](../engineering-team/cs-engineering-lead.md) -- phase 4 parent orchestrator; passes the APPROVED_STACK block
+- [cs-tech-stack-guardian](../architecture-team/cs-tech-stack-guardian.md) -- issues the APPROVED_STACK verdict that overrides local backend stack decisions
 - [cs-fullstack-engineer](cs-fullstack-engineer.md) -- cross-layer implementation
 - [cs-frontend-engineer](cs-frontend-engineer.md) -- API consumer and UI dependencies
 - [cs-senior-engineer](cs-senior-engineer.md) -- architecture-sensitive, CI/CD, security, and migration review
-- [cs-karpathy-reviewer](cs-karpathy-reviewer.md) -- simplicity and diff-noise review
+- [code-reviewer](../qa-engineers/code-reviewer.md) -- five-axis quality + Karpathy simplicity and diff-noise review
 
 ## Invocation Contract
 

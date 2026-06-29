@@ -1,5 +1,13 @@
 # Project Agent Invariants
 
+## Agent delegation whitelist
+
+Use only this repo's named project agents for delegation: the personas declared under `.claude/agents/**` and listed in `AGENTS.md`. Do not invoke built-in or generic agent types such as `general-purpose`, `claude`, or any unnamed fallback/generalist agent.
+
+If a requested project agent is unavailable, blocked by nesting, or missing required tools, do not substitute a built-in agent. Record `PROJECT_AGENT_UNAVAILABLE: <agent-name>` with the reason, then either use another explicitly named project agent that fits the same role, run the work in the current context when that role is allowed to do it, or return the gap to the parent/user.
+
+Skills that ask for "subagents", "fresh-context reviewers", or "parallel workers" must follow the same whitelist. If no named project agent fits, generate prompt files or run the sequential fallback described by the skill; never satisfy the instruction with `general-purpose` or `claude`.
+
 ## Real-brand and internet-image work
 
 When a request names a real company/brand or asks for actual logos, product logos, screenshots, photographs, PNG/SVG/image files, company colors/themes, advertising decoration, or other internet-sourced visual assets:

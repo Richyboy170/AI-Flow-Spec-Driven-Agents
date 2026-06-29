@@ -2,8 +2,15 @@
 
 Specialist personas that play a single role with a single perspective. Each persona is a Markdown file consumed as a system prompt by your harness (Claude Code, Cursor, Copilot, etc.).
 
+## Delegation whitelist
+
+Delegation must use only this repo's named project personas. Do not invoke built-in or generic agent types such as `general-purpose`, `claude`, or any unnamed fallback/generalist agent.
+
+If a desired persona is unavailable, blocked by nesting, or missing the tools needed for the task, record `PROJECT_AGENT_UNAVAILABLE: <persona>` and route to another explicitly named project persona, run the allowed current-context fallback, or return the gap to the parent/user. Do not satisfy a fan-out floor by substituting `general-purpose` or `claude`.
+
 | Persona | Role | Best for |
 |---------|------|----------|
+| [cs-tech-stack-guardian](.claude/agents/architecture-team/cs-tech-stack-guardian.md) | Architecture Team — Tech Standards Enforcer | Mandatory Pre-Phase 3 tech stack validation; issues APPROVED_STACK verdict; standards updates; exception approvals |
 | [code-reviewer](../agents/code-reviewer.md) | Senior Staff Engineer | Five-axis review before merge |
 | [security-auditor](../agents/security-auditor.md) | Security Engineer | Vulnerability detection, OWASP-style audit |
 | [test-engineer](../agents/test-engineer.md) | QA Engineer | Test strategy, coverage analysis, Prove-It pattern, browser journey audit |

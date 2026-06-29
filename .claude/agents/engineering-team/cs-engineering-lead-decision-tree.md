@@ -4,6 +4,9 @@ A command/decision tree for how `cs-engineering-lead` routes work. It encodes th
 spec in `cs-engineering-lead.md`: detect brand/asset work first, detect creative
 wildcard intent, classify task size, then fan out per-team with a **≥4 autonomous specialists per team** floor.
 
+Delegation uses only named project agents declared under `.claude/agents/**`.
+Never backfill with `general-purpose`, `claude`, or any built-in/generalist agent.
+
 ---
 
 ## 0. Top-level routing
@@ -124,7 +127,7 @@ Implement (bmad-quick-dev or direct)
    │
    ▼
 Dispatch a DIFFERENT agent for proportional review
-   │  default: cs-karpathy-reviewer
+   │  default: code-reviewer
    │  + cs-senior-engineer when technical risk is material
    ▼
 Return findings to implementer ▸ focused tests ▸ done when resolved/deferred
@@ -161,8 +164,8 @@ cs-frontend-engineer                                            cs-backend-engin
                                   │
                 ┌─────────────────┴─────────────────┐
                 ▼                                     ▼
-        cs-senior-engineer                   cs-karpathy-reviewer
-        (technical-risk review)              (simplicity / diff-noise review)
+        cs-senior-engineer                   code-reviewer
+        (technical-risk review)              (5-axis + Karpathy simplicity/diff)
 ```
 Do **not** collapse this to a single fullstack owner. A fork cannot spawn a fork,
 so the lead dispatches frontend/backend as **siblings**, never nested under fullstack.
@@ -177,21 +180,36 @@ specialists *actually invoked*; naming one, or stopping at a team lead, doesn't 
 ```
 WAVE R — Phase 1 Research & Discovery
    └─ Agent(cs-brainstorm-research-lead)  ── must fan out ≥4:
-        cs-market-researcher ║ cs-tech-researcher ║ cs-concept-synthesizer ║ cs-problem-solver
+        cs-market-researcher ║ cs-tech-researcher ║ cs-concept-synthesizer
         + cs-wildcard-ideator (REQUIRED when wildcard_requested=true)
-        + cs-innovation-strategist (wedge/strategy)
         + cs-visual-researcher (REQUIRED for UI-bearing work)
+        + cs-ux-structure-researcher (REQUIRED for structure/journey/visualization work)
         (interactive cs-design-thinker / cs-ideation-strategist: only when
-         facilitation is material — NEVER force-forked to hit the count)
+         facilitation is material; cs-problem-solver and cs-innovation-strategist are
+         also interactive — NEVER force-fork or simulate them to hit the count)
    └─ GATE: receipt shows <4 autonomous specialists without valid skip reasons?
             or wildcard_requested=true but cs-wildcard-ideator was skipped?
-            → reject handoff, backfill missing specialists directly, then accept.
+            → reject handoff, backfill missing named project specialists directly,
+              or record PROJECT_AGENT_UNAVAILABLE if a named agent cannot run.
    └─ IDEA-SELECTION GATE (hard stop): when a wildcard/choice board exists, the user
       MUST pick before Phase 2. This lead is a fork with no AskUserQuestion — do NOT
       choose for the user and do NOT advance. Return the board upward (preserve the
       `=== USER IDEA SELECTION REQUIRED ===` block) so the MAIN THREAD prints the full
       board as text and captures the pick via AskUserQuestion. Resume Phase 2 only after
       a user selection is recorded. (Visual direction is brought to the user the same way.)
+        │
+        ▼
+WAVE T — Tech Stack Validation (MANDATORY pre-Phase 3 hard gate)
+   └─ Agent(cs-tech-stack-guardian) Mode 1
+        Inputs: PRD packet + tech choices from Phase 1/2 research
+        Reads: TECH-STANDARDS.md (repository root)
+        Returns: Tech Stack Verdict + APPROVED_STACK handoff payload
+   └─ GATE:
+        APPROVED / APPROVED-WITH-NOTES → proceed; pass APPROVED_STACK to planning + all Phase 4 agents
+        DEVIATION-FLAGGED → BLOCKED — resolve deviations; re-invoke guardian until cleared
+        EXCEPTION-REQUIRED → BLOCKED — invoke cs-tech-stack-guardian Mode 2; obtain scoped exception first
+   └─ NOTE: Small Direct Engineering Change route is exempt from the agent spawn.
+            Engineers still follow TECH-STANDARDS.md directly for trivial changes.
         │
         ▼
 WAVE P — Phase 2 PRD + Phase 3 Architecture/Readiness/Stories
@@ -201,7 +219,7 @@ WAVE P — Phase 2 PRD + Phase 3 Architecture/Readiness/Stories
         + cs-evaluation-architect (verification/quality-gate spine)
         + cs-epic-story-planner (epics, stories, sprint, readiness)
    └─ UI work: bmad-ux → DESIGN.md + EXPERIENCE.md (UX owns final tokens)
-   └─ GATE: same <4 floor gate + backfill.
+   └─ GATE: same <4 floor gate + named-project-agent-only backfill.
    └─ Readiness verdict: ready / ready-with-cautions / not-ready
             → if not-ready AND blockers affect correctness: do NOT start Phase 4.
         │
@@ -214,7 +232,7 @@ WAVE E — Phase 4 Execution (dependency-aware, concurrent)
         UI/UX/a11y/render .. cs-frontend-engineer   (+ visual manifest & asset paths)
         API/data/jobs/sec .. cs-backend-engineer
         arch/CI-CD/migrate . cs-senior-engineer
-        simplicity/diff .... cs-karpathy-reviewer
+        5-axis + Karpathy .. code-reviewer
    └─ Engineer self-reviews with bmad-code-review (NOT a substitute for QA).
    └─ Engage ≥4 distinct engineering specialists across the wave.
         │
@@ -231,7 +249,7 @@ WAVE Q — Quality (independent; writer ≠ reviewer)
         each drops out ONLY with a recorded scope-based skip reason
         (e.g. web-performance-auditor on a pure backend job)
         + cs-senior-engineer (arch/migration/CI-CD risk)
-        + cs-karpathy-reviewer (simplicity on non-trivial diffs)
+        (code-reviewer now covers Karpathy simplicity/diff review)
    └─ Findings → back to original implementer → re-run affected checks
    └─ Mark done only after findings resolved or explicitly deferred.
         │
@@ -264,7 +282,9 @@ New requirements/stories created?  ── YES ──► route follow-up through 
 ```
 ┌─ Fan-out floor gate ── receipt < 4 autonomous specialists on non-trivial
 │   work AND skip reasons don't prove a genuinely smaller roster?
-│   → REJECT handoff, backfill missing specialists directly, merge, then accept.
+│   → REJECT handoff, backfill missing named project specialists, merge, then accept.
+│      If this would require `general-purpose`, `claude`, or any built-in/generalist
+│      agent, record PROJECT_AGENT_UNAVAILABLE instead.
 │
 ├─ Delegation receipt ── every delegated agent MUST return:
 │   agents/skills invoked (+count of distinct autonomous specialists) ▸

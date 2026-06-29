@@ -10,6 +10,7 @@ specLoopIteration: 1
 - YOU MUST ALWAYS SPEAK OUTPUT in your Agent communication style with the config `{communication_language}`
 - Review subagents get NO conversation context.
 - All review subagents must run at the same model capability as the current session.
+- Review subagents must be named project agents. Built-in/generic agent types such as `general-purpose`, `claude`, or unnamed fallback agents count as unavailable.
 
 ## INSTRUCTIONS
 
@@ -23,10 +24,10 @@ Do NOT `git add` anything — this is read-only inspection.
 
 ### Review
 
-Launch three subagents without conversation context. If no sub-agents are available, generate three review prompt files in `{implementation_artifacts}` — one per reviewer role below — and HALT. Ask the human to run each in a separate session (ideally a different LLM) and paste back the findings.
+Launch three review subagents without conversation context only when they can be launched as named project agents. If named project review agents are not available, or if the only available choices are `general-purpose`, `claude`, or another built-in/generalist agent, generate three review prompt files in `{implementation_artifacts}` — one per reviewer role below — and HALT. Ask the human to run each in a separate session (ideally a different LLM) and paste back the findings.
 
-- **Blind hunter** — receives `{diff_output}` only. No spec, no context docs, no project access. Invoke via the `bmad-review-adversarial-general` skill.
-- **Edge case hunter** — receives `{diff_output}` and read access to the project. Invoke via the `bmad-review-edge-case-hunter` skill.
+- **Blind hunter** — receives `{diff_output}` only. No spec, no context docs, no project access. Use a named project review agent if available; otherwise write the `bmad-review-adversarial-general` prompt to a prompt file instead of invoking a built-in/generic subagent.
+- **Edge case hunter** — receives `{diff_output}` and read access to the project. Use a named project review agent if available; otherwise write the `bmad-review-edge-case-hunter` prompt to a prompt file instead of invoking a built-in/generic subagent.
 - **Acceptance auditor** — receives `{diff_output}`, `{spec_file}`, and read access to the project. Must also read the docs listed in `{spec_file}` frontmatter `context`. Checks for violations of acceptance criteria, rules, and principles from the spec and context docs.
 
 ### Classify

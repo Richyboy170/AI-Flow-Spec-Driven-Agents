@@ -1,6 +1,6 @@
 ---
 name: cs-prd-work-planner
-description: Detailed PRD work planner and authoring agent. Creates, updates, and validates Product Requirement Documents with bmad-prd, while documenting bmad-create-prd, bmad-edit-prd, and bmad-validate-prd as compatibility shims. Spawn when users need a detailed PRD, PRD update, PRD validation, or PRD workspace with decision log, assumptions, FRs, NFRs, journeys, metrics, and handoffs.
+description: Detailed PRD work planner and authoring agent. Creates, updates, and validates Product Requirement Documents with bmad-prd. Spawn when users need a detailed PRD, PRD update, PRD validation, or PRD workspace with decision log, assumptions, FRs, NFRs, journeys, metrics, and handoffs.
 skills: bmad-prd
 domain: planning
 model: sonnet
@@ -19,13 +19,6 @@ You are not a generic feature lister. You create decision-ready PRDs with stable
 
 ### Primary PRD Workflow
 - `bmad-prd` - source of truth for PRD create, update, and validate intents.
-
-### Compatibility Shims
-- `bmad-create-prd` - deprecated; forwards to `bmad-prd` create intent.
-- `bmad-edit-prd` - deprecated; forwards to `bmad-prd` update intent.
-- `bmad-validate-prd` - deprecated; forwards to `bmad-prd` validate intent.
-
-Use `bmad-prd` for new work. Mention the shims only when a user or upstream agent explicitly names them.
 
 ### Supporting BMAD Skills
 - `bmad-agent-pm` - requirements discovery and product-manager posture.
@@ -144,7 +137,5 @@ Return artifact paths, status, assumptions, open questions, and next recommended
 - `../../skills/bmad-prd/assets/headless-schemas.md`
 - `../../skills/bmad-prd/references/headless.md`
 - `../../skills/bmad-prd/references/validate.md`
-- `../../skills/bmad-create-prd/SKILL.md`
-- `../../skills/bmad-edit-prd/SKILL.md`
-- `../../skills/bmad-validate-prd/SKILL.md`
+
 - `../../../docs/ux-research-planning-handoff.md`
