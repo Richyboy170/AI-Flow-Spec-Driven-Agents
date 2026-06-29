@@ -1,5 +1,13 @@
 # Project Agent Invariants
 
+## Agent delegation whitelist
+
+Use only this repo's named project agents for delegation: the personas declared under `.claude/agents/**` and listed in `AGENTS.md`. Do not invoke built-in or generic agent types such as `general-purpose`, `claude`, or any unnamed fallback/generalist agent.
+
+If a requested project agent is unavailable, blocked by nesting, or missing required tools, do not substitute a built-in agent. Record `PROJECT_AGENT_UNAVAILABLE: <agent-name>` with the reason, then either use another explicitly named project agent that fits the same role, run the work in the current context when that role is allowed to do it, or return the gap to the parent/user.
+
+Skills that ask for "subagents", "fresh-context reviewers", or "parallel workers" must follow the same whitelist. If no named project agent fits, generate prompt files or run the sequential fallback described by the skill; never satisfy the instruction with `general-purpose` or `claude`.
+
 ## Real-brand and internet-image work
 
 When a request names a real company/brand or asks for actual logos, product logos, screenshots, photographs, PNG/SVG/image files, company colors/themes, advertising decoration, or other internet-sourced visual assets:
@@ -26,3 +34,97 @@ When a request names a real company/brand or asks for actual logos, product logo
 10. If official pages expose no downloadable image or access is blocked, report the attempted pages, uncovered brand-coverage items, and exact failure. Do not fabricate a replacement and call it official.
 
 This invariant is a pre-implementation gate. It does not require visual research for unrelated code-only work.
+
+## Multilingual brand and product research
+
+When the user explicitly says they want the work to be multi-language and the task involves researching products, services, sub-brands, campaigns, screenshots, assets, or UX from real brands:
+
+1. Discover the brand's official native-language names and official localized product/service names from authoritative sources before searching deeply.
+2. Search using the official native script and localized names for each requested or relevant language/market. Do not translate, romanize, abbreviate, or "localize" names from your own sense.
+3. Preserve exact official names, language/locale, source URL, and any official English/global name in the research artifact.
+4. If an official native/localized name cannot be verified, mark it `unknown` or `unverified`; do not invent a translation to fill the gap.
+5. Downstream planning may translate explanatory prose, but product and brand names must remain traceable to the official source names used during research.
+
+## UX/UI structure benchmark handoff
+
+For user-facing apps, websites, dashboards, portals, onboarding flows, or data visualization surfaces, research should produce a planning-ready benchmark before PRD/UX planning when the structure or journey is not already decided:
+
+1. Route through `cs-brainstorm-research-lead` / `cs-ux-structure-researcher` when possible.
+2. Write the benchmark as `{project_root}/research/ux-structure-benchmark-<date>.md`, or `design-artifacts/<concept-slug>/research/ux-structure-benchmark-<date>.md` when no project root exists.
+3. The benchmark must include top-tier app/site references, source-quality notes, IA and navigation findings, journey findings, UX/UI pattern cards, visualization/data-display findings when relevant, state coverage, use/avoid guidance, and a `Planning Connector` table.
+4. Planning agents must preserve `IA-#`, `JNY-#`, `PAT-#`, `VIZ-#`, and `DEC-#` connector IDs until they are mapped into final PRD `UJ-#`, `FR-#`, `NFR-#`, UX decisions, or explicit non-use decisions.
+5. If no UX benchmark is available for UI-bearing work, planning should record `UX benchmark: not available` with the reason rather than silently proceeding as if the research exists.
+
+## Idea choice-board selection gate (HARD GATE — user must choose in the terminal)
+
+This is a blocking pre-implementation gate. It exists because the brainstorm-research
+and engineering subagents run as **forks** and have **no `AskUserQuestion` tool** — only
+the main thread can show an interactive choice in the terminal. If the choice board is
+not bubbled up to the main thread, the user never sees the options and selection is
+silently skipped. That must never happen.
+
+Trigger it whenever a brainstorm/research/engineering subagent produces a set of idea or
+concept options intended for the user to pick from — i.e. any wildcard/idea choice board,
+a "selection still required" payload, or a returned block marked
+`=== USER IDEA SELECTION REQUIRED ===`.
+
+When triggered, the **main thread** must:
+
+1. Stop before PRD, architecture, design, or implementation. Do not let a subagent pick
+   the concept on the user's behalf, and do not auto-advance to Phase 2.
+2. Show the **full board first as numbered Markdown text** — every card (e.g. all 6
+   wildcard + 4 conventional), each with its name and a one-line twist/wedge. Do not drop
+   or pre-rank cards away. Then call `AskUserQuestion` to capture the pick. Note
+   `AskUserQuestion` allows at most 4 options, so it cannot list 10 cards — use the chips
+   for the top recommendations plus a "show me the full list again / none of these" choice,
+   and rely on its always-present free-text "Other" so the user can type the number or name
+   of any card on the printed board. The point is that the whole board is visible in the
+   terminal and the user's choice is captured.
+3. **Block** until the user selects, or explicitly says to skip the board and build a named
+   concept anyway. Then continue with the chosen direction — if the work was being run by a
+   subagent (e.g. `cs-engineering-lead` returned the board and stopped), re-invoke that
+   subagent (`SendMessage` to continue it, or a fresh spawn) carrying the user's selection,
+   so Phase 2 resumes from the chosen concept.
+4. If a subagent returns having "decided" for the user, or hands off to synthesis/planning
+   without a recorded user selection, reject that handoff and run step 2 yourself before
+   proceeding.
+
+Subagents cannot satisfy this gate by themselves; they must **return** the board upward
+(see the `=== USER IDEA SELECTION REQUIRED ===` marker convention) and stop. Enforcement
+lives here, in the main thread.
+
+## Pause / resume milestones
+
+When the user says to pause, stop for now, or continue later — or whenever a multi-step
+project is left unfinished — save a durable milestone INSIDE the project before stopping:
+
+```
+node .claude/scripts/milestone.cjs save --project <project-dir> --stdin
+```
+
+Pipe a JSON object with: `title`, `status` (`paused`/`in-progress`/`blocked`/`done`),
+`goal`, `branch`, `completed[]`, `next[]` (the exact ordered steps to continue),
+`blockers[]`, `filesInFlight[]`, `contextToLoad[]` (files to read first), `delegation`
+(which agent/team should resume and how), and `notes`. Write `next[]` so a fresh session
+can act on it without re-deriving context. This writes `<project>/MILESTONE.md` +
+`<project>/.agent-state/milestone.json` and logs the event to the activity log.
+
+On a new session, the `SessionStart` hook surfaces the latest open milestone automatically.
+If you see a `=== RESUME MILESTONE ===` block, read the referenced `MILESTONE.md` and
+continue from its `next` steps. Mark `status: "done"` when the work is finished so it stops
+being surfaced.
+
+Per-project rule: milestone and delegation data belong INSIDE the project. When work
+targets a `sandbox/<name>` project (or any project dir), always pass `--project <dir>` so
+`MILESTONE.md`, `.agent-state/milestone.json`, and `.agent-state/activity.jsonl` are written
+there. After a meaningful chunk of delegated work on a project — and when you pause it —
+also write that project's delegation trace into it:
+
+```
+node .claude/scripts/agent-trace.cjs trace --session latest --project <project-dir>
+```
+
+This filters the session's delegations to that project and writes
+`<project-dir>/.agent-state/delegation-trace.{jsonl,md}`. To analyze a whole session
+repo-wide instead, run `agent-trace.cjs trace --session latest` without `--project`. See
+`.claude/scripts/AGENT-OBSERVABILITY.md` for the full reference.

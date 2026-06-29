@@ -1,6 +1,6 @@
 ---
 name: "senior-qa"
-description: Generates unit tests, integration tests, and E2E tests for React/Next.js applications. Scans components to create Jest + React Testing Library test stubs, analyzes Istanbul/LCOV coverage reports to surface gaps, scaffolds Playwright test files from Next.js routes, mocks API calls with MSW, creates test fixtures, and configures test runners. Use when the user asks to "generate tests", "write unit tests", "analyze test coverage", "scaffold E2E tests", "set up Playwright", "configure Jest", "implement testing patterns", or "improve test quality".
+description: Generates unit tests, integration tests, E2E tests, and Playwright-backed browser journey audits for React/Next.js applications. Scans components to create Jest + React Testing Library test stubs, analyzes Istanbul/LCOV coverage reports, scaffolds Playwright test files from routes, runs pre-publish user journey verification for navigation/forms/saves/auth/checkout, captures console/network failures, and configures test runners. Use when the user asks to "generate tests", "write unit tests", "analyze test coverage", "scaffold E2E tests", "set up Playwright", "run browser QA", "audit user journeys", "pre-publish QA", "verify navigation", "detect website failures", "configure Jest", "implement testing patterns", or "improve test quality".
 ---
 
 # Senior QA Engineer
@@ -20,6 +20,13 @@ python scripts/coverage_analyzer.py coverage/coverage-final.json --threshold 80
 
 # Scaffold Playwright E2E tests for Next.js routes
 python scripts/e2e_test_scaffolder.py src/app/ --output e2e/
+
+# Run a runtime browser journey audit from the project root
+node .claude/skills/browser-journey-audit/scripts/playwright_journey_probe.mjs \
+  --url http://localhost:3000 \
+  --journeys qa/journeys.json \
+  --out qa-artifacts/browser-journey-audit \
+  --require-journeys
 ```
 
 ---
@@ -95,7 +102,75 @@ python scripts/e2e_test_scaffolder.py src/app/ --routes "/login,/dashboard,/chec
 
 ---
 
+### 4. Browser Journey Audit
+
+Runs the real app through Playwright-backed journey checks before release. Use this when a website or application needs final QA, when navigation/user-flow failures are suspected, or when unit/integration tests are not enough to prove the product works.
+
+**Input:** Base URL plus optional `qa/journeys.json`
+**Output:** `qa-artifacts/browser-journey-audit/report.md`, `report.json`, and screenshots
+
+**Usage:**
+```bash
+# Explicit P0/P1 journeys - required for final QA of apps with forms/saves/auth/checkout
+node .claude/skills/browser-journey-audit/scripts/playwright_journey_probe.mjs \
+  --url http://localhost:3000 \
+  --journeys qa/journeys.json \
+  --out qa-artifacts/browser-journey-audit \
+  --require-journeys
+
+# Weaker fallback: same-origin route smoke crawl
+node .claude/skills/browser-journey-audit/scripts/playwright_journey_probe.mjs \
+  --url http://localhost:3000 \
+  --out qa-artifacts/browser-journey-audit \
+  --max-pages 25
+```
+
+**Required release evidence:**
+- P0/P1 journey inventory
+- Console errors and first-party 4xx/5xx counts
+- Screenshots or traces for failed and final states
+- Persistence reload result for save/update flows
+- Verdict: `PASS`, `FAIL`, or `BLOCKED`
+
+---
+
 ## QA Workflows
+
+### Runtime Journey Audit Workflow
+
+Use when preparing a browser app for release or investigating failures in a complicated site.
+
+**Step 1: Start the app**
+```bash
+npm run dev
+# or use the preview/staging URL supplied by the workflow
+```
+
+**Step 2: Create or update journey config**
+
+Create `qa/journeys.json` from the P0/P1 user journeys. Include semantic locators and reload persistence checks where relevant. See `.claude/skills/browser-journey-audit/references/journey-config.md`.
+
+**Step 3: Run browser journey audit**
+```bash
+node .claude/skills/browser-journey-audit/scripts/playwright_journey_probe.mjs \
+  --url http://localhost:3000 \
+  --journeys qa/journeys.json \
+  --out qa-artifacts/browser-journey-audit \
+  --require-journeys
+```
+
+**Step 4: Triage failures**
+
+- Blocker: P0 journey cannot complete, app blank screen, auth/callback broken, checkout/save fails.
+- Critical: data loss, wrong-origin redirect, first-party 5xx on core action.
+- High: primary navigation broken, valid input blocked, reload loses saved state.
+- Medium: secondary route/action broken, non-blocking console error.
+
+**Step 5: Re-run after fixes**
+
+Re-run the exact same command after every fix that could affect the result. Do not approve until the P0/P1 report is clean or remaining gaps are explicitly accepted as non-release-blocking.
+
+---
 
 ### Unit Test Generation Workflow
 
@@ -232,6 +307,7 @@ npx playwright show-report
 | `references/testing_strategies.md` | Test pyramid, testing types, coverage targets, CI/CD integration | Designing test strategy |
 | `references/test_automation_patterns.md` | Page Object Model, mocking (MSW), fixtures, async patterns | Writing test code |
 | `references/qa_best_practices.md` | Testable code, flaky tests, debugging, quality metrics | Improving test quality |
+| `.claude/skills/browser-journey-audit/references/journey-config.md` | Playwright journey JSON format and supported runtime checks | Running pre-publish browser QA |
 
 ---
 
@@ -324,6 +400,7 @@ npx playwright test                # Run all E2E tests
 npx playwright test --ui           # UI mode
 npx playwright test --debug        # Debug mode
 npx playwright codegen             # Generate tests
+node .claude/skills/browser-journey-audit/scripts/playwright_journey_probe.mjs --url http://localhost:3000 --journeys qa/journeys.json --out qa-artifacts/browser-journey-audit --require-journeys
 
 # Coverage
 npm test -- --coverage --coverageReporters=lcov,json

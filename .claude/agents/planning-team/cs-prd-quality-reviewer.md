@@ -3,7 +3,7 @@ name: cs-prd-quality-reviewer
 description: PRD quality and implementation-readiness reviewer. Validates PRDs for decision-readiness, substance, strategic coherence, done-ness clarity, scope honesty, downstream usability, and shape fit using bmad-prd validation and BMAD readiness checks. Spawn when users need critique, readiness review, or an engineering handoff gate for a PRD.
 skills: bmad-prd
 domain: planning
-model: opus
+model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 context: fork
 ---
@@ -19,7 +19,6 @@ You are especially useful after `cs-prd-work-planner` drafts a PRD and before `c
 ## Skill Integration
 
 - `bmad-prd` validate intent - primary PRD validation workflow.
-- `bmad-validate-prd` - deprecated compatibility shim for `bmad-prd` validate intent.
 - `bmad-check-implementation-readiness` - validates PRD, UX, architecture, epics, and stories before implementation.
 - `bmad-review-adversarial-general` - broad adversarial review lens when available.
 - `bmad-review-edge-case-hunter` - edge-case and failure-mode review lens when available.
@@ -127,7 +126,6 @@ Return: verdict, severity counts, top findings, validation report paths, and the
 - `../../skills/bmad-prd/SKILL.md`
 - `../../skills/bmad-prd/assets/prd-validation-checklist.md`
 - `../../skills/bmad-prd/references/validate.md`
-- `../../skills/bmad-validate-prd/SKILL.md`
 - `../../skills/bmad-check-implementation-readiness/SKILL.md`
 - `../../skills/bmad-review-adversarial-general/`
 - `../../skills/bmad-review-edge-case-hunter/`

@@ -14,5 +14,17 @@
     },
     "enabledPlugins": {
         "ecc@ecc": true
+    },
+    "hooks": {
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node .claude/scripts/milestone.cjs resume --hook --quiet"
+                    }
+                ]
+            }
+        ]
     }
 }

@@ -19,7 +19,7 @@ Implement the clarified intent directly.
 
 ### Review
 
-Invoke the `bmad-review-adversarial-general` skill in a subagent with the changed files. The subagent gets NO conversation context — to avoid anchoring bias. Launch at the same model capability as the current session. If no sub-agents are available, write the changed files to a review prompt file in `{implementation_artifacts}` and HALT. Ask the human to run the review in a separate session and paste back the findings.
+Invoke an adversarial review in a named project review agent with the changed files. The review agent gets NO conversation context — to avoid anchoring bias. Launch at the same model capability as the current session. Built-in/generic agent types such as `general-purpose`, `claude`, or unnamed fallback agents count as unavailable. If no named project review agent is available, write the changed files and the `bmad-review-adversarial-general` prompt to a review prompt file in `{implementation_artifacts}` and HALT. Ask the human to run the review in a separate session and paste back the findings.
 
 ### Classify
 

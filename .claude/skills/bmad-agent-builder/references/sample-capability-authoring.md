@@ -46,7 +46,7 @@ Point to an existing installed skill rather than reinventing it. If you discover
 ## Learned
 | Code | Name | Description | Source | Added |
 |------|------|-------------|--------|-------|
-| [PR] | Create PRD | Product requirements | External: `bmad-create-prd` | 2026-03-25 |
+| [PR] | Create PRD | Product requirements | External: `bmad-prd` | 2026-03-25 |
 ```
 
 ## Prompt File Format

@@ -3,7 +3,7 @@ name: cs-epic-story-planner
 description: Epic and story planning agent for PRD-to-engineering handoff. Breaks validated PRDs and architecture decisions into epics, user stories, acceptance criteria, and sprint-ready implementation plans using bmad-create-epics-and-stories, bmad-create-story, story automation, sprint planning, and readiness checks. Spawn when a PRD is ready to become engineering work.
 skills: bmad-create-epics-and-stories
 domain: planning
-model: opus
+model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 
@@ -46,7 +46,7 @@ If a prerequisite fails, stop and return a readiness gap instead of fabricating 
 
 ### 1. PRD to Epics and Stories
 
-1. Read the PRD path and any architecture or UX artifacts.
+1. Read the PRD path and any architecture or UX artifacts, including UX benchmark traceability when it is referenced by the PRD or UX spec.
 2. Invoke `bmad-create-epics-and-stories`.
 3. Respect its step-file architecture:
    - read one step file completely
@@ -57,6 +57,7 @@ If a prerequisite fails, stop and return a readiness gap instead of fabricating 
 4. Preserve traceability:
    - each epic references the PRD feature group and FR IDs
    - each story references FR/NFR IDs and user journey IDs where relevant
+   - UX-sensitive stories preserve mapped `IA-#`, `JNY-#`, `PAT-#`, `VIZ-#`, or `DEC-#` research IDs when those IDs explain acceptance criteria
    - each acceptance criterion is observable
    - acceptance criteria and test notes draw from the evaluation spine's verification matrix, Definition of Done, and known-mistakes catalog when one exists
 5. Return artifact paths and readiness gaps.

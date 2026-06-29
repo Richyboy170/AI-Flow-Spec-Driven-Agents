@@ -2,12 +2,23 @@
 
 Specialist personas that play a single role with a single perspective. Each persona is a Markdown file consumed as a system prompt by your harness (Claude Code, Cursor, Copilot, etc.).
 
+## Delegation whitelist
+
+Delegation must use only this repo's named project personas. Do not invoke built-in or generic agent types such as `general-purpose`, `claude`, or any unnamed fallback/generalist agent.
+
+If a desired persona is unavailable, blocked by nesting, or missing the tools needed for the task, record `PROJECT_AGENT_UNAVAILABLE: <persona>` and route to another explicitly named project persona, run the allowed current-context fallback, or return the gap to the parent/user. Do not satisfy a fan-out floor by substituting `general-purpose` or `claude`.
+
 | Persona | Role | Best for |
 |---------|------|----------|
+| [cs-tech-stack-guardian](.claude/agents/architecture-team/cs-tech-stack-guardian.md) | Architecture Team — Tech Standards Enforcer | Mandatory Pre-Phase 3 tech stack validation; issues APPROVED_STACK verdict; standards updates; exception approvals |
 | [code-reviewer](../agents/code-reviewer.md) | Senior Staff Engineer | Five-axis review before merge |
 | [security-auditor](../agents/security-auditor.md) | Security Engineer | Vulnerability detection, OWASP-style audit |
-| [test-engineer](../agents/test-engineer.md) | QA Engineer | Test strategy, coverage analysis, Prove-It pattern |
+| [test-engineer](../agents/test-engineer.md) | QA Engineer | Test strategy, coverage analysis, Prove-It pattern, browser journey audit |
 | [web-performance-auditor](../agents/web-performance-auditor.md) | Web Performance Engineer | Core Web Vitals audit, loading/rendering/network analysis |
+| [cs-backend-engineer](.claude/agents/engineering/cs-backend-engineer.md) | Backend Engineer | APIs, persistence, jobs, auth/session boundaries, integrations, migrations, observability, and backend verification |
+| [cs-frontend-engineer](.claude/agents/engineering/cs-frontend-engineer.md) | Frontend Engineer | UI behavior, accessibility, responsive rendering, frontend tests, browser verification, and web performance |
+| [cs-ux-structure-researcher](.claude/agents/brainstorm-research-team/cs-ux-structure-researcher.md) | UX Researcher | Top-tier app/site structure, user journey, UX/UI, visualization, and planning handoff research |
+| [cs-wildcard-ideator](.claude/agents/brainstorm-research-team/cs-wildcard-ideator.md) | Wildcard Ideator | Weird, wonderful, out-of-the-box app/site ideas before implementation; supplies 6/10 choice-board slots |
 
 ## How personas relate to skills and commands
 
@@ -28,8 +39,11 @@ Pick this when you want one perspective on the current change and the user is in
 
 - "Review this PR" → invoke `code-reviewer` directly
 - "Are there security issues in `auth.ts`?" → invoke `security-auditor` directly
-- "What tests are missing for the checkout flow?" → invoke `test-engineer` directly
+- "What tests are missing for the checkout flow?" or "Verify this user journey before publish" → invoke `test-engineer` directly
 - "Audit Core Web Vitals on the product page" → invoke `web-performance-auditor` directly
+- "Build or review this API/data migration/backend service" → invoke `cs-backend-engineer` directly
+- "Build or verify this UI/frontend flow" → invoke `cs-frontend-engineer` directly
+- "Give me weird, wonderful, out-of-the-box ideas before implementation" → invoke `cs-wildcard-ideator` directly or via `cs-brainstorm-research-lead`
 
 ### Slash command (single persona behind it)
 Pick this when there's a repeatable workflow you'd otherwise re-explain every time.
@@ -63,7 +77,7 @@ Is the work a single perspective on a single artifact?
 /ship
   ├── (parallel) code-reviewer    → review report
   ├── (parallel) security-auditor → audit report
-  └── (parallel) test-engineer    → coverage report
+  └── (parallel) test-engineer    → coverage + browser journey report
                   ↓
         merge phase (main agent)
                   ↓

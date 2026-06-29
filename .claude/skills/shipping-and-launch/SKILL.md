@@ -22,6 +22,7 @@ Ship with confidence. The goal is not just to deploy — it's to deploy safely, 
 ### Code Quality
 
 - [ ] All tests pass (unit, integration, e2e)
+- [ ] Browser journey audit passes for P0/P1 user flows (`browser-journey-audit` / Playwright), with artifacts saved
 - [ ] Build succeeds with no warnings
 - [ ] Lint and type checking pass
 - [ ] Code reviewed and approved
@@ -113,6 +114,8 @@ return null;
 
 ```
 1. DEPLOY to staging
+   - Playwright browser journey audit of critical flows
+   - Manual smoke test only for human-only steps such as MFA, CAPTCHA, or real payment authorization
    └── Full test suite in staging environment
    └── Manual smoke test of critical flows
 
@@ -230,7 +233,7 @@ In the first hour after launch:
 1. Check health endpoint returns 200
 2. Check error monitoring dashboard (no new error types)
 3. Check latency dashboard (no regression)
-4. Test the critical user flow manually
+4. Re-run the P0 browser journey audit against production or staging
 5. Verify logs are flowing and readable
 6. Confirm rollback mechanism works (dry run if possible)
 ```
@@ -294,6 +297,7 @@ Every deployment needs a rollback plan before it happens:
 Before deploying:
 
 - [ ] Pre-launch checklist completed (all sections green)
+- [ ] P0/P1 browser journey audit report is attached or the release is explicitly blocked
 - [ ] Feature flag configured (if applicable)
 - [ ] Rollback plan documented
 - [ ] Monitoring dashboards set up
@@ -304,6 +308,6 @@ After deploying:
 - [ ] Health check returns 200
 - [ ] Error rate is normal
 - [ ] Latency is normal
-- [ ] Critical user flow works
+- [ ] P0 browser journey audit passes against production or staging
 - [ ] Logs are flowing
 - [ ] Rollback tested or verified ready

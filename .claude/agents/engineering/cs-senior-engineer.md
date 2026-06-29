@@ -7,7 +7,7 @@ skills:
   - ckm:ui-styling
   - ckm:design-system
 domain: engineering
-model: opus
+model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 ---
 
@@ -71,7 +71,7 @@ Cross-cutting senior engineer covering architecture, backend, DevOps, security, 
 3. If the story is cross-layer, coordinate `cs-fullstack-engineer`; if single-domain, route to `cs-frontend-engineer` or `cs-backend-engineer`.
 4. Use `bmad-dev-story` for implementation when this agent owns the work.
 5. Run focused verification and record tests.
-6. Run `bmad-code-review` and/or `cs-karpathy-reviewer` before marking the story done.
+6. Run `bmad-code-review` and/or `code-reviewer` before marking the story done.
 7. Resolve review follow-ups or explicitly return deferrals to `cs-engineering-lead`.
 8. Return a compact digest: story path, status, changed files, tests run, review result, unresolved risks, and next recommended story.
 
@@ -134,7 +134,7 @@ Cross-cutting senior engineer covering architecture, backend, DevOps, security, 
 - [cs-fullstack-engineer](cs-fullstack-engineer.md) -- Cross-layer implementation
 - [cs-frontend-engineer](cs-frontend-engineer.md) -- Frontend implementation
 - [cs-backend-engineer](cs-backend-engineer.md) -- Backend implementation
-- [cs-karpathy-reviewer](cs-karpathy-reviewer.md) -- Simplicity and diff-noise review
+- [code-reviewer](../qa-engineers/code-reviewer.md) -- five-axis quality + Karpathy simplicity and diff-noise review
 - [cs-planning-lead](../planning-team/cs-planning-lead.md) -- PRD, architecture, stories, and readiness context
 
 ## Invocation Contract

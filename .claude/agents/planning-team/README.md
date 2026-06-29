@@ -1,6 +1,6 @@
 # Planning Team
 
-The Planning Team turns app and website ideas into implementation-ready planning artifacts. It is designed to sit between the existing `brainstorm-research-team` and `engineering` / `engineering-team` agents.
+The Planning Team turns app and website ideas into implementation-ready planning artifacts. It is designed to sit between the existing `brainstorm-research-team` and `engineering` / `engineering-team` agents. For UI-bearing work, it consumes both visual evidence and UX/UI structure benchmark reports from research before finalizing PRDs, UX specs, journeys, epics, or stories.
 
 ## Roster
 
@@ -15,10 +15,10 @@ The Planning Team turns app and website ideas into implementation-ready planning
 ## Primary Flow
 
 1. Phase 1 research/discovery enters through `../brainstorm-research-team/cs-brainstorm-research-lead.md` and returns to `../engineering-team/cs-engineering-lead.md`.
-2. `cs-engineering-lead` sends the research packet to `cs-planning-lead`.
+2. `cs-engineering-lead` sends the research packet to `cs-planning-lead`, including visual research and UX structure benchmark paths when applicable.
 3. Phase 2: `cs-concept-to-prd-planner` packages the idea as a brief or PRFAQ when the concept needs more pressure-testing.
 4. Phase 2: `cs-requirements-architect` builds the requirements map when the product needs stable glossary, journeys, FRs, NFRs, assumptions, or scope boundaries.
-5. Phase 2: `cs-prd-work-planner` creates or updates the PRD with `bmad-prd`.
+5. Phase 2: `cs-prd-work-planner` creates or updates the PRD with `bmad-prd`, preserving UX benchmark connector IDs as PRD traceability notes.
 6. Phase 2/3: `cs-evaluation-architect` authors the evaluation/verification spine once FRs/NFRs/UJs are stable, keyed to those IDs, so engineering and QA inherit a testable Definition of Done, quality gates, and a known-mistakes catalog.
 7. Phase 3: `cs-planning-lead` routes architecture through `bmad-create-architecture` and, when useful, `bmad-agent-architect`.
 8. Phase 3: `cs-prd-quality-reviewer` validates the PRD and runs implementation-readiness checks across PRD, UX if present, architecture, epics, and stories.
@@ -30,6 +30,7 @@ The Planning Team turns app and website ideas into implementation-ready planning
 When called by `cs-engineering-lead`, return:
 
 - PRD workspace path, `prd.md`, `addendum.md` if present, and `.decision-log.md`
+- UX structure benchmark path and connector ID mapping when applicable
 - architecture artifact paths and ADR/design-decision paths
 - validation and implementation-readiness report paths
 - evaluation spine path (`evaluation-spec.md` or PRD addendum section) with ID-coverage status
@@ -39,4 +40,4 @@ When called by `cs-engineering-lead`, return:
 
 ## BMAD PRD Skill Policy
 
-Use `bmad-prd` for new PRD work. `bmad-create-prd`, `bmad-edit-prd`, and `bmad-validate-prd` are compatibility shims that forward to `bmad-prd` create, update, and validate intents.
+Use `bmad-prd` for all PRD work — it detects create, update, and validate intent from the conversation automatically.

@@ -8,7 +8,7 @@ The Engineering agents execute phase 4 of the delivery flow owned by `../enginee
 2. The lead assigns exactly one ready story at a time to the right engineering agent.
 3. The assigned agent reads the story, PRD, architecture, readiness verdict, and sprint-status paths.
 4. Implementation uses `bmad-dev-story` when a story file exists.
-5. Review uses `bmad-code-review` and/or `cs-karpathy-reviewer` before the story is marked done.
+5. Review uses `bmad-code-review` and/or `code-reviewer` before the story is marked done.
 6. Review follow-ups go back to the implementing agent until resolved or explicitly deferred.
 7. The engineering agent returns a compact digest to `cs-engineering-lead`.
 
@@ -18,7 +18,7 @@ The Engineering agents execute phase 4 of the delivery flow owned by `../enginee
 - `cs-frontend-engineer` - UI, UX behavior, accessibility, rendering, browser tests, and web performance.
 - `cs-backend-engineer` - APIs, persistence, jobs, auth/session boundaries, integrations, observability, and migrations.
 - `cs-senior-engineer` - architecture-sensitive work, CI/CD, security, technical repair, and senior review.
-- `cs-karpathy-reviewer` - simplicity, diff-noise, and goal-driven execution review.
+- `code-reviewer` - five-axis quality review + Karpathy simplicity, diff-noise, and goal-driven execution review.
 
 ## BMAD Skills
 
@@ -37,13 +37,25 @@ The Engineering agents execute phase 4 of the delivery flow owned by `../enginee
 - `ckm:design-system` - token architecture, component specifications, and systematic UI standards.
 - `ckm:design`, `ckm:brand`, `ckm:banner-design`, `ckm:slides` - broader design, brand, visual asset, and presentation workflows when engineering stories include those outputs.
 
+## Verification and MCP Baseline
+
+Engineering implementers choose verification commands from the target repo's manifests, lockfiles, and scripts first. Preferred defaults:
+
+- Backend Python: `uv`, `ruff`, `ty` or `mypy`, `pytest`, `pytest-asyncio`, and `hypothesis` when contracts are stable.
+- Backend Node/TS: `biome` or ESLint plus Prettier, `tsc --noEmit`, and `vitest`.
+- Backend Go: `golangci-lint run` and `go test ./...`.
+- Frontend: `biome` or ESLint plus Prettier, `tsc --noEmit`, `vitest`, and Playwright CLI for repeatable browser verification.
+- Security/quality: Semgrep or Opengrep for SAST and `gitleaks` for secret scanning.
+
+MCPs are used for evidence, not as a substitute for tests: Database MCP only against dev/staging databases, Observability MCP read-only, Playwright MCP for exploratory browser loops, Chrome DevTools MCP for live runtime inspection, Context7 for current version-specific docs, Figma MCP for design handoff, Vercel/Netlify MCP for preview checks, and GitHub MCP for repo/PR/CI visibility.
+
 ## Return Digest
 
 Every phase 4 agent returns:
 
 - story path and status
 - changed files
-- tests or checks run
+- tests or checks run, including MCP evidence used when applicable
 - review result and report path if available
 - unresolved risks or deferrals
 - next recommended story or handoff
