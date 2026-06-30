@@ -2,7 +2,10 @@
 name: cs-backend-engineer
 model: sonnet
 description: Backend engineering orchestrator for API, data, service, integration, observability, and security stories. Picks backend language/pattern profiles when needed, and executes phase 4 backend stories from cs-engineering-lead using BMAD development and review workflows. Forks own context. Invoke via /cs:backend-review or Agent({subagent_type:"cs-backend-engineer",...}).
-skills: engineering-team/senior-backend
+skills:
+  - engineering-team/senior-backend
+  - docker-development
+  - docker-via-wsl
 domain: engineering
 tools: [Read, Write, Bash, Grep, Glob, Skill]
 context: fork
@@ -23,6 +26,10 @@ You own backend implementation concerns: APIs, persistence, data modeling, jobs,
 - `bmad-quick-dev` -- small direct changes outside the full planning pipeline
 - `bmad-checkpoint-preview` -- human walkthrough checkpoint before integration
 - `bmad-testarch-test-design`, `bmad-testarch-atdd`, `bmad-testarch-trace`, `bmad-testarch-nfr`, `bmad-testarch-test-review` -- test architecture gates for backend and integration risk
+
+### Docker & Containerization
+- `docker-development` -- Dockerfile, docker-compose, multi-stage builds, .dockerignore, CI container testing, security anti-patterns; invoke for ANY Docker task
+- `docker-via-wsl` -- Windows-only: re-issue docker/docker compose commands inside WSL via `wsl.exe` when the shell is Git Bash/MSYS/PowerShell (avoids bind-mount path corruption on SMB/network drives)
 
 ### Backend Skills
 - `engineering-team/senior-backend` -- backend implementation patterns
@@ -58,6 +65,8 @@ Detect the backend stack from manifests, lockfiles, CI, and existing scripts bef
 | Cross-language security/quality | `semgrep --config auto .` or Opengrep for SAST, plus `gitleaks detect --source .` for secret scanning. |
 
 Stage checks by cost: fast lint/format at pre-commit, type checking and unit tests before handoff, and full SAST/secret scans plus integration or contract tests before PR-ready status.
+
+When the story touches a Dockerfile, docker-compose, or CI container config, invoke `docker-development` before implementation. On Windows (Git Bash/MSYS/PowerShell shell), invoke `docker-via-wsl` first — all `docker` commands must run through `wsl.exe` against a native Linux path.
 
 ### MCP Servers
 

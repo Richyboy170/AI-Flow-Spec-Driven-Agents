@@ -13,7 +13,6 @@
 
 BMAD-Method Agentic SDLC is a layered software development lifecycle for agentic delivery. It uses Claude Code agents, specialist personas, BMAD skills, commands, and optional deterministic workflows to take software work from idea discovery through PRD, architecture, evaluation, story implementation, QA review, and delivery.
 
-
 This repository is not primarily a website or app. Generated apps, `app/`, and `sandbox/` are working surfaces and experiments. The core product is the **agentic SDLC system**.
 
 ## At A Glance

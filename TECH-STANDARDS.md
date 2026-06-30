@@ -13,7 +13,7 @@
 | Frontend | TypeScript | 5.x+ (strict mode required) |
 | Backend | TypeScript on Node.js | TypeScript 5.x+, Node.js 20 LTS+ |
 | Scripts / tooling | TypeScript or bash | No Python in scripts unless ML/data pipeline |
-| SQL | ANSI SQL (PostgreSQL dialect) | PostgreSQL 15+ |
+| SQL | T-SQL (Microsoft SQL Server dialect) | SQL Server 2019+ |
 
 ### TypeScript settings (required in every project)
 
@@ -122,20 +122,20 @@ class AppError extends Error {
 
 | Concern | Approved choice |
 |---------|----------------|
-| Primary database | PostgreSQL (managed via Supabase) |
-| Access layer | Supabase client SDK (`@supabase/supabase-js`) for simple CRUD; raw SQL via `postgres` driver for complex queries |
+| Primary database | Microsoft SQL Server 2019+ (company-licensed) |
+| Access layer | `mssql` npm package for all queries (raw SQL; no abstraction layer over it) |
 | ORM | None (raw SQL preferred for transparency; no Prisma, Drizzle, TypeORM) |
-| Migrations | Raw SQL migration files — numbered `NNNN_description.sql` — applied via Supabase CLI |
-| Caching | Supabase Edge Cache for read-heavy data; Redis (Upstash) for session/queue |
-| Search | PostgreSQL full-text search (`tsvector`/`tsquery`) first; Supabase Vector for semantic/AI search |
+| Migrations | Raw SQL migration files — numbered `NNNN_description.sql` — applied via `sqlcmd` |
+| Caching | Redis (Upstash) for session/queue; SQL Server Query Store for query-level caching |
+| Search | SQL Server Full-Text Search (`CONTAINS`/`FREETEXT`) first; Azure Cognitive Search for semantic/AI search |
 
 ### 4.1 Schema conventions
 
 - All table names: `snake_case`, plural → `user_accounts`, `billing_subscriptions`
-- Primary keys: UUID v4 (`gen_random_uuid()`) — no serial integers
-- Timestamps: `created_at TIMESTAMPTZ DEFAULT now()`, `updated_at TIMESTAMPTZ` (trigger-maintained)
-- Soft deletes: `deleted_at TIMESTAMPTZ NULL` (do not physically delete rows by default)
-- Row Level Security: **enabled on every table** — no exceptions; all access through RLS policies
+- Primary keys: `UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID()` — no identity integers (sequential UUIDs preserve index locality)
+- Timestamps: `created_at DATETIMEOFFSET(7) DEFAULT SYSDATETIMEOFFSET()`, `updated_at DATETIMEOFFSET(7)` (trigger-maintained)
+- Soft deletes: `deleted_at DATETIMEOFFSET(7) NULL` (do not physically delete rows by default)
+- Row-Level Security: use SQL Server Security Policies with inline table-valued predicates on every table that holds tenant or user data
 
 ---
 
@@ -193,7 +193,7 @@ project-root/
       errors/           # AppError class + error codes
       types/            # Global shared types
     core/
-      database.ts       # Supabase client singleton
+      database.ts       # SQL Server connection pool singleton (mssql)
       config.ts         # Env var loading + validation
       app.ts            # Fastify app factory
   migrations/           # Numbered SQL migration files
@@ -250,7 +250,7 @@ project-root/
 | Contract tests | Zod schema validation at boundaries | All API endpoints |
 
 - Tests are co-located with source code (same feature folder)
-- No mocking of the database in integration tests — use a test Supabase project or local Supabase CLI
+- No mocking of the database in integration tests — use a dedicated test SQL Server database (local Docker container or a named test instance)
 - Test file name: `<module>.test.ts`
 
 ---
@@ -283,7 +283,7 @@ project-root/
 |---------|---------|
 | Hosting (web apps) | Vercel (frontend) |
 | Hosting (APIs) | Vercel Serverless Functions or Railway (for long-running servers) |
-| Database | Supabase (managed) |
+| Database | Microsoft SQL Server (company-licensed; on-prem or Azure SQL) |
 | Queue / cache | Upstash Redis |
 | CI/CD | GitHub Actions |
 | Container | Docker for local dev only; not required for Vercel/Railway deploys |
@@ -301,7 +301,7 @@ project-root/
 | NestJS | Over-engineered DI system adds unnecessary complexity |
 | Prisma, TypeORM, Drizzle | ORM complexity; raw SQL is preferred |
 | GraphQL (without exception) | REST + Zod is sufficient; GraphQL requires architecture sign-off |
-| MongoDB, Firebase, DynamoDB | PostgreSQL covers all use cases for this stack |
+| Any non-Microsoft database (PostgreSQL, MySQL, MongoDB, Firebase, DynamoDB, Supabase DB, etc.) | Only Microsoft SQL Server is approved — company holds the license; no other RDBMS or document store is permitted without an architecture exception |
 | Python (non-ML projects) | Unified TypeScript stack; Python only allowed for AI/ML workloads |
 | jQuery | Never |
 | Webpack (greenfield) | Vite is the approved bundler |
@@ -332,3 +332,4 @@ When a project genuinely cannot use an approved technology (e.g., a client manda
 | Date | Section changed | Summary | Requested by |
 |------|----------------|---------|-------------|
 | 2026-06-29 | All | Initial standards created | Architecture team |
+| 2026-06-30 | §1, §4, §4.1, §5.2, §7, §9, §10 | Database changed from PostgreSQL/Supabase to Microsoft SQL Server (company license) | User |
