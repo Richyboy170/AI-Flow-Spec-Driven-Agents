@@ -13,7 +13,7 @@
  *   - budget cap:  global ceiling on total delegations
  *   - no cycles:   an agent cannot delegate back into one of its ancestors
  *   - fork-safe:   INTERACTIVE-only personas are refused as autonomous targets
- *   - trace:       every hop is logged to .claude/logs/orchestrate-<runid>.jsonl
+ *   - trace:       every hop is logged to <project>/.agent-state/orchestrate-<runid>.jsonl
  *
  * ALTITUDE: this guarantees + traces the DELEGATION GRAPH. Leaf workers return
  * a text work-product; they do NOT yet get real file/bash effects. Wiring the
@@ -37,7 +37,6 @@ const { spawnSync } = require("node:child_process");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const AGENTS_DIR = path.join(REPO_ROOT, ".claude", "agents");
-const LOGS_DIR = path.join(REPO_ROOT, ".claude", "logs");
 
 const PROXY_URL =
   process.env.ORCH_BASE_URL ||
@@ -61,6 +60,8 @@ const DEFAULTS = {
   maxTokens: int(process.env.ORCH_MAX_TOKENS, 4000),
   maxRetries: int(process.env.ORCH_MAX_RETRIES, 5), // per model call, on 429/5xx
   maxAsks: int(process.env.ORCH_MAX_ASKS, 4), // total ask_user prompts per run
+  askTimeout: int(process.env.ORCH_ASK_TIMEOUT, 60), // seconds before auto-proceeding
+  resumeDelay: int(process.env.ORCH_RESUME_DELAY, 3600), // seconds to wait before auto-resuming after a credit-limit 429
 };
 
 // HTTP statuses worth retrying with backoff (rate limit / transient server).
@@ -317,7 +318,11 @@ async function callModel({ model, system, messages, tools, maxTokens, cache, max
     );
     // Tag exhausted rate limits so the delegation loop propagates (and checkpoints)
     // instead of silently degrading the parent's result.
-    if (RETRYABLE_STATUS.has(res.status)) err.rateLimited = true;
+    if (RETRYABLE_STATUS.has(res.status)) {
+      err.rateLimited = true;
+      const ra = Number(res.headers.get("retry-after"));
+      if (Number.isFinite(ra) && ra > 0) err.retryAfterSecs = ra;
+    }
     err.status = res.status;
     throw err;
   }
@@ -333,12 +338,52 @@ function textOf(content) {
 }
 
 // ---------------------------------------------------------------------------
+// Live transcript — print each agent's turn to the terminal (stderr) as it
+// happens, the way the Claude CLI shows the assistant talking. On by default;
+// suppress with --quiet. Colors only on a TTY (and honor NO_COLOR).
+// ---------------------------------------------------------------------------
+
+const CHAT_COLOR = process.stderr.isTTY && !process.env.NO_COLOR;
+function paint(code, s) {
+  return CHAT_COLOR ? `\x1b[${code}m${s}\x1b[0m` : s;
+}
+
+function printChat(ctx, persona, depth, resp, cached) {
+  if (ctx.quiet) return;
+  const pad = "  ".repeat(depth);
+  const tag = cached ? " " + paint("2", "[cached]") : "";
+  process.stderr.write(
+    "\n" + pad + paint("36;1", `● ${persona.name}`) + paint("2", `  (depth ${depth})`) + tag + "\n",
+  );
+
+  const text = textOf(resp.content);
+  if (text) {
+    for (const line of text.split("\n")) process.stderr.write(pad + "  " + line + "\n");
+  }
+
+  for (const b of resp.content || []) {
+    if (!b || b.type !== "tool_use") continue;
+    if (b.name === "delegate") {
+      const target = (b.input && b.input.agent) || "?";
+      const t = String((b.input && b.input.task) || "").replace(/\s+/g, " ").slice(0, 200);
+      process.stderr.write(pad + "  " + paint("33;1", `→ delegate ${target}`) + `: ${t}\n`);
+    } else if (b.name === "ask_user") {
+      const q = String((b.input && b.input.question) || "").replace(/\s+/g, " ").slice(0, 200);
+      process.stderr.write(pad + "  " + paint("35;1", "? ask_user") + `: ${q}\n`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Trace logging
 // ---------------------------------------------------------------------------
 
-function makeTracer(runId) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-  const file = path.join(LOGS_DIR, `orchestrate-${runId}.jsonl`);
+function makeTracer(runId, projectDir) {
+  // Trace log lives next to the run's cache + task snapshot in the project's
+  // .agent-state, so the whole run (cache, trace, milestone) is in one folder.
+  const dir = path.join(projectDir, ".agent-state");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `orchestrate-${runId}.jsonl`);
   const events = [];
   return {
     file,
@@ -425,21 +470,33 @@ const ORCH_PREAMBLE_HEADLESS = [
 
 const ASK_USER_PREAMBLE = [
   "",
-  "A human operator IS available via the `ask_user` tool, but it is EXPENSIVE: each",
-  "call blocks the whole run on a human typing. Use it RARELY — ideally once, for a",
-  "required concept/idea selection — and at most a couple of times per run.",
+  "A human operator MAY be available via the `ask_user` tool, but the run does NOT block",
+  "waiting for them — a countdown auto-proceeds if they don't respond in time.",
+  "Treat `ask_user` as a best-effort signal, not a guaranteed block.",
   "",
-  "ONLY call `ask_user` for a genuine decision you cannot reasonably make yourself",
-  "(e.g. the user must pick a concept from an idea board, or an irreversible choice).",
-  "NEVER call `ask_user` to: announce progress or status, say you are starting/working/",
-  "researching, ask 'ready?' / 'shall I proceed?' / 'OK?', confirm something you have",
-  "already decided, or send a notification. Those are forbidden — if you have enough to",
-  "proceed, JUST PROCEED and return your work product as text (no tool call).",
+  "ABSOLUTE PROHIBITIONS — calling `ask_user` for any of these is a hard error:",
+  "  • File paths, output directories, or project root — use the project path from your",
+  "    task context, or a sensible default inside it. NEVER ask where to write files.",
+  "  • Announcements: 'I am starting', 'proceeding now', 'research in progress' — just",
+  "    proceed without announcing. Return your work product when done.",
+  "  • Asking the same question twice — if you already asked, trust the answer you got.",
+  "  • Blank or empty questions.",
+  "  • Confirming 'ready?', 'shall I proceed?', 'OK to continue?', 'is this correct?'.",
   "",
-  "When `ask_user` returns the human's answer, TRUST IT and continue — do not re-ask the",
-  "same thing. If you would otherwise emit a '=== USER IDEA SELECTION REQUIRED ===' board",
-  "for a separate main thread, INSTEAD call `ask_user` ONCE with the question and options;",
-  "you are the top of this run, so ask directly and continue with their choice.",
+  "WHEN `ask_user` RETURNS EMPTY OR STARTS WITH '(no response':",
+  "  The user is not present. Make a REASONABLE DEFAULT ASSUMPTION, document it in your",
+  "  work product (e.g. 'Assumed US-primary market based on task context'), and continue.",
+  "  Do NOT call `ask_user` again about the same topic.",
+  "",
+  "BATCH RULE: Consolidate ALL genuine questions into ONE `ask_user` call. Never make",
+  "multiple sequential `ask_user` calls — one call, one answer, proceed.",
+  "",
+  "CONFLICT RULE: If the user's task contains something wrong, infeasible, or ambiguous,",
+  "surface it in your FIRST AND ONLY `ask_user` call BEFORE doing any other work.",
+  "",
+  "If you would otherwise emit a '=== USER IDEA SELECTION REQUIRED ===' board for a",
+  "separate main thread, INSTEAD call `ask_user` ONCE with the full question and options.",
+  "When they pick (or when the timeout auto-proceeds), continue with that choice.",
 ].join("\n");
 
 const DELEGATE_PREAMBLE = [
@@ -473,10 +530,124 @@ function promptLine(promptText) {
 }
 
 /**
+ * Show a countdown and resolve with the user's typed answer (if they respond
+ * within timeoutSecs), or '' (if they don't).
+ *
+ * Typing STOPS the countdown — first keypress freezes the timer and the user
+ * gets unlimited time to finish their answer.  This is what lets a user who IS
+ * watching answer, while a user who walked away has the run auto-proceed.
+ *
+ * Closes the persistent readline interface before attaching a raw `data`
+ * listener to avoid the double-consumption / silent-read bug on Windows.
+ * stdinInterface() recreates it on the next promptLine() call.
+ */
+function promptWithCountdown(timeoutSecs, ctx) {
+  // Close the shared readline so it doesn't compete with our raw data listener.
+  if (_stdinRl) {
+    _stdinRl.close(); // fires 'close' handler → _stdinRl = null
+  }
+
+  // Raw mode: data fires per-keystroke so we can freeze the countdown on the
+  // first character, and we handle echo + backspace ourselves.
+  // Falls back gracefully if raw mode isn't available (e.g. piped stdin —
+  // but in that case interactive is false and we never reach this function).
+  const canRaw = !!process.stdin.isTTY && typeof process.stdin.setRawMode === "function";
+  if (canRaw) process.stdin.setRawMode(true);
+
+  process.stdin.resume();
+  process.stdin.setEncoding("utf8");
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    let userTyping = false;
+    let buffer = "";
+    let remaining = timeoutSecs;
+
+    const done = (answer) => {
+      if (resolved) return;
+      resolved = true;
+      if (canRaw) process.stdin.setRawMode(false);
+      process.stdin.removeListener("data", onData);
+      // Update user-absent flag on ctx so subsequent asks skip the countdown.
+      if (ctx) {
+        ctx.userAbsent = answer === "";
+      }
+      resolve(answer);
+    };
+
+    process.stderr.write(`\r⏱  Proceeding in ${remaining}s (type + Enter to answer): `);
+
+    const interval = setInterval(() => {
+      if (userTyping) return; // user is mid-input — freeze the clock
+      remaining -= 1;
+      if (remaining > 0) {
+        process.stderr.write(`\r⏱  Proceeding in ${remaining}s (type + Enter to answer): `);
+      } else {
+        clearInterval(interval);
+        process.stderr.write("\n(no response — proceeding autonomously)\n");
+        done("");
+      }
+    }, 1000);
+
+    const onData = (chunk) => {
+      if (resolved) return;
+      for (const ch of chunk) {
+        const code = ch.charCodeAt(0);
+
+        if (ch === "\r" || ch === "\n") {
+          // Enter — submit whatever is in the buffer.
+          clearInterval(interval);
+          process.stderr.write("\n");
+          done(buffer.trim());
+          return;
+        }
+
+        if (code === 3) {
+          // Ctrl+C
+          clearInterval(interval);
+          process.stderr.write("\n");
+          process.exit(130);
+        }
+
+        if (code === 127 || code === 8) {
+          // Backspace / DEL
+          if (!userTyping) {
+            userTyping = true;
+            clearInterval(interval);
+            process.stderr.write("\n> ");
+          }
+          if (buffer.length > 0) {
+            buffer = buffer.slice(0, -1);
+            process.stdout.write("\b \b");
+          }
+          continue;
+        }
+
+        if (!userTyping) {
+          // First visible character — stop countdown, show the prompt.
+          userTyping = true;
+          clearInterval(interval);
+          process.stderr.write("\n> " + ch);
+        } else {
+          process.stdout.write(ch);
+        }
+        buffer += ch;
+      }
+    };
+
+    process.stdin.on("data", onData);
+  });
+}
+
+/**
  * Pause the run and ask the human operator a question in the terminal, returning
  * their typed answer. This is how an agent (e.g. an idea-selection gate) gets a
  * real decision FROM the user, in code, mid-orchestration. Answers are cached
  * (keyed by the question) so a resumed run doesn't re-ask.
+ *
+ * Fire-and-forget mode: every ask uses a countdown (default 60 s). The user's
+ * first keypress stops the clock; if they don't respond, the run auto-proceeds
+ * and ctx.userAbsent is set so subsequent asks skip the countdown immediately.
  */
 async function askUser(question, options, ctx) {
   const hasOpts = Array.isArray(options) && options.length > 0;
@@ -489,24 +660,35 @@ async function askUser(question, options, ctx) {
       return hit;
     }
   }
+
   const out = ["", "═".repeat(72), "❓ THE ORCHESTRATION NEEDS YOUR INPUT", "", String(question), ""];
   if (hasOpts) {
     options.forEach((o, i) => out.push(`  ${i + 1}. ${o}`));
-    out.push("", "Type the option NUMBER or your own answer, then Enter:");
-  } else {
-    out.push("Type your answer, then Enter:");
+    out.push("", "Type the option NUMBER or your own answer, then Enter.");
   }
   out.push("═".repeat(72));
   process.stderr.write(out.join("\n") + "\n");
 
-  let answer = (await promptLine("> ")).trim();
-  if (hasOpts) {
-    const n = Number(answer);
-    if (Number.isInteger(n) && n >= 1 && n <= options.length) answer = options[n - 1];
+  let answer;
+  if (ctx.userAbsent) {
+    // User has already been absent at least once this run — skip countdown.
+    process.stderr.write("(user absent — auto-proceeding)\n");
+    answer = "";
+  } else {
+    answer = await promptWithCountdown(ctx.askTimeout || DEFAULTS.askTimeout, ctx);
+    if (hasOpts && answer) {
+      const n = Number(answer);
+      if (Number.isInteger(n) && n >= 1 && n <= options.length) answer = options[n - 1];
+    }
   }
-  // Only cache REAL answers, so a transient empty read is never frozen into the run.
+
+  // Only cache REAL answers — a timeout is never frozen into the run.
   if (answer && ctx.cache && hash) ctx.cache.put(hash, answer);
-  if (!answer) answer = "(no answer provided)";
+  if (!answer) {
+    answer =
+      "(no response — user not present; use your research and best judgment to proceed; " +
+      "document any assumptions you make; do NOT call ask_user again on this topic)";
+  }
   return answer;
 }
 
@@ -608,6 +790,7 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
   const messages = [{ role: "user", content: task }];
 
   for (let turn = 0; turn < ctx.maxTurns; turn++) {
+    const hitsBefore = ctx.cache ? ctx.cache.hits : 0;
     const resp = await callModel({
       model,
       system,
@@ -617,6 +800,10 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
       cache: ctx.cache,
       maxRetries: ctx.maxRetries,
     });
+    // A cache hit means this turn is being replayed from a prior run (resume),
+    // not a fresh live call — mark it so the reprinted history is distinguishable.
+    const cached = ctx.cache ? ctx.cache.hits > hitsBefore : false;
+    printChat(ctx, persona, depth, resp, cached);
     ctx.tracer.log("turn", {
       agent: persona.name,
       depth,
@@ -906,10 +1093,16 @@ async function main() {
         "  --project <dir>              where progress is saved (default: cwd; use sandbox/<name>)",
         "  --backend <name>             proxy | claude-code | anthropic | auto (default)",
         "  --no-interactive             disable ask_user prompts (headless; for CI/piped runs)",
+        "  --ask-timeout N              seconds to wait before auto-proceeding on agent questions (default 60)",
+        "                               type any key within N seconds to stop the clock and answer",
         "  --max-depth N --max-delegations N --max-turns N --max-tokens N --max-retries N --max-asks N",
         "  --run-id <id>                trace/cache id. Re-run with the SAME id to RESUME",
         "                               a rate-limited run: completed delegations replay",
         "                               from cache, the failed agent runs live.",
+        "  --auto-resume                on rate-limit: wait --resume-delay seconds then retry",
+        "                               automatically (fire-and-forget; Ctrl+C to abort)",
+        "  --resume-delay N             seconds to wait before auto-resuming (default 3600 = 1 h)",
+        "  --quiet                      hide the live agent transcript (it prints to the terminal by default)",
         "",
         `  backends : proxy=${PROXY_URL}  claude-code=OAuth(api.anthropic.com)  anthropic=API key`,
         `  models   : opus=${MODEL_MAP.opus} sonnet=${MODEL_MAP.sonnet} haiku=${MODEL_MAP.haiku}`,
@@ -952,7 +1145,7 @@ async function main() {
   // Interactive when attached to a terminal (so agents can ask_user). Force off
   // with --no-interactive for CI / piped runs, where agents proceed autonomously.
   const interactive = !!process.stdin.isTTY && arg("--no-interactive", false) !== true;
-  const tracer = makeTracer(runId);
+  const tracer = makeTracer(runId, projectDir);
   const cache = makeCache(projectDir, runId);
   const ctx = {
     agents,
@@ -965,44 +1158,92 @@ async function main() {
     maxTurns: int(arg("--max-turns"), DEFAULTS.maxTurns),
     maxTokens: int(arg("--max-tokens"), DEFAULTS.maxTokens),
     maxRetries: int(arg("--max-retries"), DEFAULTS.maxRetries),
+    askTimeout: int(arg("--ask-timeout"), DEFAULTS.askTimeout),
+    autoResume: arg("--auto-resume", false) === true,
+    resumeDelay: int(arg("--resume-delay"), DEFAULTS.resumeDelay),
+    userAbsent: false, // set true after first timeout; cleared when user types
+    quiet: arg("--quiet", false) === true, // suppress the live agent transcript
   };
   const resumeCmd = buildResumeCmd({ rootName, taskFile: taskSnapshot, runId, projectDir, backend: backendArg });
 
   console.log(
     `Running ${rootName} (depth<=${ctx.maxDepth}, <=${ctx.budget.max} delegations, run-id ${runId}).\n` +
       `  project: ${projectDir}\n  trace:   ${path.relative(REPO_ROOT, tracer.file)}\n` +
-      `  input:   ${interactive ? "interactive — agents can ask you via ask_user" : "headless — no prompts"}` +
+      `  input:   ${interactive ? `interactive — agents ask via ask_user (${ctx.askTimeout}s timeout; type to stop clock)` : "headless — no prompts"}` +
+      (ctx.autoResume ? `\n  auto-resume: on rate-limit wait ~${Math.round(ctx.resumeDelay / 60)}m then retry (Ctrl+C to abort)` : "") +
+      `\n  transcript: ${ctx.quiet ? "off (--quiet)" : "on — live agent chat prints below (stderr); --quiet to hide"}` +
       (cache.restored ? `\n  resume:  replaying ${cache.restored} cached response(s) from a prior run` : "") +
       "\n",
   );
 
   let product;
-  try {
-    product = await runAgent(root, task, 0, [], ctx);
-  } catch (e) {
-    const { total } = renderTree(tracer, rootName);
-    console.error("\n=== RUN HALTED ===\n" + e.message);
-    if (e.rateLimited) {
-      saveMilestone({
-        status: "blocked",
-        projectDir,
-        rootName,
-        task,
-        runId,
-        backend: backendArg,
-        tracer,
-        resumeCmd,
-        cacheFile: cache.file,
-        traceFile: tracer.file,
-        errorMessage: e.message,
-      });
-      console.error(
-        `\nRate-limited after ${cache.live} live call(s); ${total} delegation(s) checkpointed to the cache.\n` +
-          `Resume (replays cached work, continues at the rate-limited agent):\n  ${resumeCmd}`,
-      );
+  let resumeAttempt = 0;
+  for (;;) {
+    try {
+      product = await runAgent(root, task, 0, [], ctx);
+      break;
+    } catch (e) {
+      const { total } = renderTree(tracer, rootName);
+
+      if (e.rateLimited && ctx.autoResume) {
+        resumeAttempt += 1;
+        // Use the server's Retry-After if it's a meaningful long wait; else use configured delay.
+        const waitSecs =
+          e.retryAfterSecs && e.retryAfterSecs > 120 ? e.retryAfterSecs : ctx.resumeDelay;
+        saveMilestone({
+          status: "blocked",
+          projectDir,
+          rootName,
+          task,
+          runId,
+          backend: backendArg,
+          tracer,
+          resumeCmd,
+          cacheFile: cache.file,
+          traceFile: tracer.file,
+          errorMessage: e.message,
+        });
+        process.stderr.write(
+          `\n=== RATE LIMITED (attempt ${resumeAttempt}) ===\n${e.message}\n` +
+            `${cache.live} live call(s); ${total} delegation(s) cached.\n` +
+            `Auto-resuming in ~${Math.round(waitSecs / 60)}m — Ctrl+C to abort.\n` +
+            `(all completed work is cached and will replay instantly on the next attempt)\n\n`,
+        );
+        let remaining = waitSecs;
+        const tick = setInterval(() => {
+          remaining -= 30;
+          if (remaining > 0)
+            process.stderr.write(`\r⏳ Resuming in ~${Math.ceil(remaining / 60)}m ...  `);
+        }, 30000);
+        await sleep(waitSecs * 1000);
+        clearInterval(tick);
+        process.stderr.write(`\r⏳ Resuming now (attempt ${resumeAttempt + 1})...        \n\n`);
+        continue;
+      }
+
+      console.error("\n=== RUN HALTED ===\n" + e.message);
+      if (e.rateLimited) {
+        saveMilestone({
+          status: "blocked",
+          projectDir,
+          rootName,
+          task,
+          runId,
+          backend: backendArg,
+          tracer,
+          resumeCmd,
+          cacheFile: cache.file,
+          traceFile: tracer.file,
+          errorMessage: e.message,
+        });
+        console.error(
+          `\nRate-limited after ${cache.live} live call(s); ${total} delegation(s) checkpointed to the cache.\n` +
+            `Resume (replays cached work, continues at the rate-limited agent):\n  ${resumeCmd}`,
+        );
+      }
+      process.exitCode = 1;
+      return;
     }
-    process.exitCode = 1;
-    return;
   }
 
   const { tree, total, counts } = renderTree(tracer, rootName);
