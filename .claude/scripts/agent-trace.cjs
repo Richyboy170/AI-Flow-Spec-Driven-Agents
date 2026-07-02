@@ -517,6 +517,242 @@ function eventsJsonl(model, events) {
     .join("\n");
 }
 
+/* ---------------------------------------------------------------------------
+ * Orchestrator runs (orchestrate.cjs) — a SECOND delegation source.
+ *
+ * orchestrate.cjs does NOT use Claude Code's Agent tool; it runs its own loop and
+ * appends one JSONL event per line to .claude/logs/orchestrate-<run-id>.jsonl:
+ *   {ts, runId, event: turn|delegate|result|refused|error|ask_user|ask_user_answer,
+ *    from, to, depth, task, agent, question, answer, note}
+ * The loop is depth-first and properly bracketed (a `delegate` is followed by that
+ * child's whole subtree, then a `result`), so we rebuild the tree with a stack and
+ * render it with the same tree/timeline/counts machinery as Claude Code sessions.
+ * ------------------------------------------------------------------------- */
+
+function orchLogsDir(flags) {
+  return path.join(repoBase(flags), ".claude", "logs");
+}
+
+function listOrchRuns(flags) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(orchLogsDir(flags));
+  } catch {
+    return [];
+  }
+  const runs = [];
+  for (const f of entries) {
+    const m = /^orchestrate-(.+)\.jsonl$/.exec(f);
+    if (!m || m[1].startsWith("trace-")) continue; // skip our own emitted traces
+    const full = path.join(orchLogsDir(flags), f);
+    let mtime = 0;
+    try {
+      mtime = fs.statSync(full).mtimeMs;
+    } catch {
+      /* ignore */
+    }
+    runs.push({ runId: m[1], file: full, mtime });
+  }
+  runs.sort((a, b) => b.mtime - a.mtime);
+  return runs;
+}
+
+function resolveOrchLog(flags) {
+  if (flags.file && flags.file !== true) return flags.file;
+  const runs = listOrchRuns(flags);
+  if (runs.length === 0) return null;
+  const want = flags["run-id"];
+  if (want && want !== true) {
+    const hit = runs.find((r) => r.runId === want) || runs.find((r) => r.runId.startsWith(want));
+    return hit ? hit.file : null;
+  }
+  return runs[0].file; // latest
+}
+
+function buildOrchModel(file) {
+  const lines = readLinesSafe(file);
+  if (lines.length === 0) return { error: `Empty or missing orchestrate log: ${file}` };
+  let runId = null;
+  let counter = 0;
+  const nodes = new Map();
+  const stack = [];
+  let root = null;
+  let firstTs = null;
+  let lastTs = null;
+  const interactions = [];
+
+  const mk = (type, spawn) => {
+    const id = `n${counter++}`;
+    const node = { id, type, label: type, children: [], depth: 0, spawn, firstTs: spawn ? spawn.ts : null, lastTs: spawn ? spawn.ts : null };
+    nodes.set(id, node);
+    return node;
+  };
+
+  for (const line of lines) {
+    const o = parseJsonSafe(line);
+    if (!o || !o.event) continue;
+    if (o.runId && !runId) runId = o.runId;
+    if (o.ts) {
+      if (!firstTs) firstTs = o.ts;
+      lastTs = o.ts;
+    }
+
+    switch (o.event) {
+      case "turn": {
+        if (!root) {
+          root = { id: "__root__", type: o.agent || "(root)", label: o.agent || "(root)", children: [], depth: 0, spawn: null, firstTs: o.ts, lastTs: o.ts };
+          nodes.set(root.id, root);
+          stack.push(root);
+        }
+        const cur = stack[stack.length - 1];
+        if (cur) {
+          if (!cur.firstTs) cur.firstTs = o.ts;
+          cur.lastTs = o.ts;
+        }
+        break;
+      }
+      case "delegate": {
+        const parent = stack[stack.length - 1] || root;
+        const child = mk(o.to, { description: o.task ? truncate(o.task, 70) : "", prompt: o.task || "", ts: o.ts, parentId: parent ? parent.id : root && root.id });
+        if (parent) parent.children.push(child);
+        stack.push(child);
+        break;
+      }
+      case "result": {
+        const child = stack.pop();
+        if (child) child.lastTs = o.ts;
+        break;
+      }
+      case "refused": {
+        const parent = stack[stack.length - 1] || root;
+        const child = mk(`${o.to} (refused)`, { description: o.note ? truncate(o.note, 70) : "refused", prompt: o.note || "", ts: o.ts, parentId: parent ? parent.id : root && root.id });
+        if (parent) parent.children.push(child);
+        interactions.push({ ts: o.ts, kind: "refused", text: `${o.from} ⨯ ${o.to}: ${truncate(o.note || "", 80)}` });
+        break;
+      }
+      case "error": {
+        const cur = stack[stack.length - 1];
+        if (cur) cur.errorNote = o.note;
+        interactions.push({ ts: o.ts, kind: "error", text: `${o.to || ""}: ${truncate(o.note || "", 90)}` });
+        break;
+      }
+      case "ask_user":
+        interactions.push({ ts: o.ts, kind: "ask", text: `Q (${o.agent}): ${truncate(o.question || "", 100)}` });
+        break;
+      case "ask_user_answer":
+        interactions.push({ ts: o.ts, kind: "answer", text: `A: ${truncate(o.answer || "", 100)}` });
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (!root) return { error: `No turns/delegations found in ${file}` };
+
+  for (const n of nodes.values()) {
+    if (n.errorNote && n.spawn) n.spawn.description = `${n.spawn.description ? n.spawn.description + " " : ""}⚠ ${truncate(n.errorNote, 50)}`;
+  }
+
+  (function assignDepth(node, depth) {
+    node.depth = depth;
+    node.children.sort((a, b) => String(a.spawn ? a.spawn.ts : "").localeCompare(String(b.spawn ? b.spawn.ts : "")));
+    for (const ch of node.children) assignDepth(ch, depth + 1);
+  })(root, 0);
+
+  const events = [];
+  for (const node of nodes.values()) {
+    if (!node.spawn) continue;
+    const parent = nodes.get(node.spawn.parentId);
+    events.push({
+      ts: node.spawn.ts,
+      from: parent ? parent.type : "(root)",
+      fromId: parent ? parent.id : null,
+      to: node.type,
+      toId: node.id,
+      description: node.spawn.description,
+      prompt: node.spawn.prompt,
+      depth: node.depth,
+      durationMs: durationMs(node.firstTs, node.lastTs),
+    });
+  }
+  events.sort((a, b) => String(a.ts || "").localeCompare(String(b.ts || "")));
+
+  return { sessionId: runId || path.basename(file), mainFile: file, root, nodes, events, orphans: [], interactions, sessionStart: firstTs, sessionEnd: lastTs };
+}
+
+function cmdOrchRuns(flags) {
+  const runs = listOrchRuns(flags);
+  if (runs.length === 0) {
+    console.log(`No orchestrator runs under ${orchLogsDir(flags)} (orchestrate-*.jsonl).`);
+    return;
+  }
+  console.log(`Orchestrator runs in ${orchLogsDir(flags)}\n`);
+  console.log(`${"RUN-ID".padEnd(40)} ${"UPDATED".padEnd(20)} DELEGATIONS`);
+  console.log("-".repeat(78));
+  for (const r of runs) {
+    let delg = 0;
+    for (const line of readLinesSafe(r.file)) {
+      const o = parseJsonSafe(line);
+      if (o && o.event === "delegate") delg += 1;
+    }
+    console.log(`${r.runId.padEnd(40)} ${fmtTime(new Date(r.mtime).toISOString()).padEnd(20)} ${delg}`);
+  }
+}
+
+function cmdOrch(flags) {
+  const file = resolveOrchLog(flags);
+  if (!file) {
+    console.log(`No orchestrator run logs found under ${orchLogsDir(flags)} (orchestrate-*.jsonl).`);
+    console.log('Run one with: node .claude/scripts/orchestrate.cjs --agent <name> --task "..." --project <dir>');
+    return;
+  }
+  const model = buildOrchModel(file);
+  if (model.error) {
+    console.log(`Error: ${model.error}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const projectDir = flags.project && flags.project !== true ? path.resolve(flags.project) : null;
+  const activityFile = projectDir ? path.join(projectDir, ".agent-state", "activity.jsonl") : activityRepoLog(flags);
+
+  const report = buildReport(model, model.root, model.events, flags, activityFile, projectDir);
+  if (model.interactions && model.interactions.length) {
+    report.push("", "USER INTERACTIONS & EXCEPTIONS", "");
+    for (const it of model.interactions) {
+      const mark = it.kind === "ask" ? "❓" : it.kind === "answer" ? "✅" : it.kind === "refused" ? "⨯" : "⚠";
+      report.push(`  ${fmtTime(it.ts).slice(11)} ${mark} ${it.text}`);
+    }
+  }
+  report.push("", `Source: ${file}`);
+  console.log(report.join("\n"));
+
+  if (projectDir) {
+    try {
+      const stateDir = path.join(projectDir, ".agent-state");
+      fs.mkdirSync(stateDir, { recursive: true });
+      const jsonl = eventsJsonl(model, model.events);
+      fs.writeFileSync(path.join(stateDir, "orchestrate-trace.jsonl"), jsonl + (jsonl ? "\n" : ""));
+      fs.writeFileSync(path.join(stateDir, "orchestrate-trace.md"), "```\n" + report.join("\n") + "\n```\n");
+      console.log(`\nOrchestrator trace written:`);
+      console.log(`  ${path.join(stateDir, "orchestrate-trace.jsonl")}  (${model.events.length} events)`);
+      console.log(`  ${path.join(stateDir, "orchestrate-trace.md")}`);
+    } catch (err) {
+      console.log(`\nFailed to write orchestrator trace: ${err.message}`);
+    }
+  } else if (flags.json) {
+    const out = flags.out || path.join(orchLogsDir(flags), `orchestrate-trace-${model.sessionId}.jsonl`);
+    try {
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      const jsonl = eventsJsonl(model, model.events);
+      fs.writeFileSync(out, jsonl + (jsonl ? "\n" : ""));
+      console.log(`\nStructured event log written: ${out}  (${model.events.length} events)`);
+    } catch (err) {
+      console.log(`\nFailed to write --json output: ${err.message}`);
+    }
+  }
+}
+
 function cmdSessions(flags) {
   const { dir, sessions } = listSessions(flags);
   if (sessions.length === 0) {
@@ -634,18 +870,30 @@ function main() {
       case "watch":
         cmdWatch(flags);
         break;
+      case "orch-runs":
+        cmdOrchRuns(flags);
+        break;
+      case "orchestrate":
+      case "orch":
+        cmdOrch(flags);
+        break;
       default:
         console.log(
           [
             "agent-trace.cjs — analyze how agents delegate to other agents",
             "",
-            "Commands:",
+            "Claude Code sessions (Agent/Task tool):",
             "  sessions [--limit N]                          list sessions (newest first)",
             "  trace [--session latest|<id>] [--project <dir>]   delegation tree + timeline",
             "        [--json] [--out <file>] [--full-prompts]",
             "  watch [--session latest|<id>] [--project <dir>] [--interval 5]",
             "",
-            "--project <dir> filters to one project and writes its trace into <dir>/.agent-state/.",
+            "Orchestrator runs (orchestrate.cjs logs):",
+            "  orch-runs                                     list orchestrator runs (newest first)",
+            "  orch [--run-id <id>|--file <path>] [--project <dir>]   orchestrator delegation tree",
+            "        [--json] [--out <file>] [--full-prompts]   (default: latest run)",
+            "",
+            "--project <dir> writes the trace into <dir>/.agent-state/.",
             "Common: --cwd <path> --projects-dir <path>",
           ].join("\n")
         );

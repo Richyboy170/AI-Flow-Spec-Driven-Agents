@@ -99,8 +99,8 @@ APPROVED_STACK:
   backend_runtime: Node.js 20 LTS
   backend_framework: Fastify 5.x
   validation: Zod 3.x
-  database: PostgreSQL via Supabase
-  database_access: @supabase/supabase-js SDK + raw postgres driver
+  database: Microsoft SQL Server 2019+ (company-licensed)
+  database_access: mssql npm package (raw SQL; no ORM)
   auth: Supabase Auth (JWT)
   testing: Vitest + Playwright
   linting: Biome

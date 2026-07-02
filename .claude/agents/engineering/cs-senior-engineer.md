@@ -6,6 +6,8 @@ skills:
   - ui-ux-pro-max
   - ckm:ui-styling
   - ckm:design-system
+  - docker-development
+  - docker-via-wsl
 domain: engineering
 model: sonnet
 tools: [Read, Write, Bash, Grep, Glob, Skill]
@@ -51,6 +53,10 @@ Cross-cutting senior engineer covering architecture, backend, DevOps, security, 
 - `bmad-testarch-trace` -- Requirement-to-test traceability
 - `bmad-testarch-nfr` -- Non-functional requirement gate
 - `bmad-testarch-test-review` -- Test quality review
+
+### Docker & Containerization
+- `docker-development` -- Dockerfile, docker-compose, multi-stage builds, bake, .dockerignore, CI container testing, and security anti-patterns; invoke for ANY Docker task
+- `docker-via-wsl` -- Windows-only: run all `docker`/`docker compose` commands through `wsl.exe` in a native Linux path when the shell is Git Bash/MSYS/PowerShell
 
 ### DevOps & Delivery
 - `engineering/ci-cd-pipeline-builder` -- Pipeline generation: GitHub Actions, GitLab CI
