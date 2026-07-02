@@ -62,10 +62,27 @@ const DEFAULTS = {
   maxAsks: int(process.env.ORCH_MAX_ASKS, 4), // total ask_user prompts per run
   askTimeout: int(process.env.ORCH_ASK_TIMEOUT, 60), // seconds before auto-proceeding
   resumeDelay: int(process.env.ORCH_RESUME_DELAY, 3600), // seconds to wait before auto-resuming after a credit-limit 429
+  maxParallel: int(process.env.ORCH_MAX_PARALLEL, 4), // concurrent teammates per delegation wave (1 = sequential)
+  skillMaxChars: int(process.env.ORCH_SKILL_MAX_CHARS, 12000), // cap on a loaded SKILL.md body
+  fileMaxChars: int(process.env.ORCH_FILE_MAX_CHARS, 24000), // cap on a read_file / run_command / web result
+  cmdTimeout: int(process.env.ORCH_CMD_TIMEOUT, 120), // seconds before run_command is killed
+  traceTextChars: int(process.env.ORCH_TRACE_TEXT_CHARS, 2000), // cap on text snippets written to trace logs
 };
 
 // HTTP statuses worth retrying with backoff (rate limit / transient server).
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 529]);
+
+function retryAfterSeconds(value, nowMs = Date.now()) {
+  if (value == null) return undefined;
+  const raw = String(value).trim();
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds > 0) return Math.ceil(seconds);
+  const when = Date.parse(raw);
+  if (!Number.isFinite(when)) return undefined;
+  const diff = Math.ceil((when - nowMs) / 1000);
+  return diff > 0 ? diff : undefined;
+}
 
 function int(v, d) {
   const n = Number(v);
@@ -77,6 +94,7 @@ function int(v, d) {
 // ---------------------------------------------------------------------------
 
 /** Parse `---` frontmatter + body from a persona markdown file. */
+// STRUCTURE_KEYWORD: PERSONA_PARSE - converts one agent Markdown file into runtime persona config.
 function parsePersona(file) {
   const raw = fs.readFileSync(file, "utf8");
   const lines = raw.split(/\r?\n/);
@@ -124,6 +142,7 @@ function parsePersona(file) {
 }
 
 /** Load every persona under .claude/agents/**. Returns Map<name, persona>. */
+// STRUCTURE_KEYWORD: AGENT_REGISTRY - builds the whitelist of project agents that may run.
 function loadAgents() {
   const out = new Map();
   const walk = (dir) => {
@@ -147,6 +166,26 @@ function resolveModel(persona) {
 }
 
 // ---------------------------------------------------------------------------
+// Skill loading — this repo's .claude/skills/<name>/SKILL.md, exposed to agents
+// through a `use_skill` tool so skill usage is visible (and traced) per agent.
+// ---------------------------------------------------------------------------
+
+const SKILLS_DIR = path.join(REPO_ROOT, ".claude", "skills");
+
+/** Map<skillName, absolute SKILL.md path> for every skill in the repo. */
+// STRUCTURE_KEYWORD: SKILL_REGISTRY - exposes repo skills through the use_skill tool.
+function loadSkills() {
+  const out = new Map();
+  if (!fs.existsSync(SKILLS_DIR)) return out;
+  for (const entry of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const file = path.join(SKILLS_DIR, entry.name, "SKILL.md");
+    if (fs.existsSync(file)) out.set(entry.name, file);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Model client — non-streaming POST /v1/messages against the proxy
 // ---------------------------------------------------------------------------
 
@@ -165,6 +204,7 @@ const CLAUDE_CREDS = path.join(
  * The OAuth token is read fresh from disk each run — never copied or persisted.
  */
 let _backend;
+// STRUCTURE_KEYWORD: BACKEND_SELECT - chooses proxy, Claude Code OAuth, or direct Anthropic API.
 function resolveBackend() {
   if (_backend) return _backend;
   let choice = String(arg("--backend", process.env.ORCH_BACKEND || "auto"));
@@ -230,6 +270,7 @@ function resolveBackend() {
  * Non-streaming on purpose — keeps us off the proxy's SSE path and the
  * delegate turns are short.
  */
+// STRUCTURE_KEYWORD: MODEL_TURN - sends one Messages API request and handles retry/cache.
 async function callModel({ model, system, messages, tools, maxTokens, cache, maxRetries }) {
   const be = resolveBackend();
 
@@ -300,9 +341,9 @@ async function callModel({ model, system, messages, tools, maxTokens, cache, max
 
     // Retryable (rate limit / transient) — back off and try again, up to the cap.
     if (RETRYABLE_STATUS.has(res.status) && attempt < retries) {
-      const retryAfter = Number(res.headers.get("retry-after"));
+      const retryAfter = retryAfterSeconds(res.headers.get("retry-after"));
       const RETRY_CAP_MS = 60000; // never block for an absurd server Retry-After
-      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      const waitMs = retryAfter
         ? Math.min(retryAfter * 1000, RETRY_CAP_MS)
         : Math.min(30000, 1000 * 2 ** attempt);
       attempt += 1;
@@ -320,8 +361,8 @@ async function callModel({ model, system, messages, tools, maxTokens, cache, max
     // instead of silently degrading the parent's result.
     if (RETRYABLE_STATUS.has(res.status)) {
       err.rateLimited = true;
-      const ra = Number(res.headers.get("retry-after"));
-      if (Number.isFinite(ra) && ra > 0) err.retryAfterSecs = ra;
+      const ra = retryAfterSeconds(res.headers.get("retry-after"));
+      if (ra) err.retryAfterSecs = ra;
     }
     err.status = res.status;
     throw err;
@@ -337,6 +378,37 @@ function textOf(content) {
     .trim();
 }
 
+function traceClip(value, ctx, fallbackCap) {
+  const cap = int(ctx && ctx.traceTextChars, fallbackCap || DEFAULTS.traceTextChars);
+  const text = String(value == null ? "" : value);
+  if (text.length <= cap) return text;
+  return text.slice(0, cap) + `\n[trace text truncated at ${cap} chars]`;
+}
+
+function traceToolUse(tu, ctx) {
+  const input = tu && tu.input ? tu.input : {};
+  if (!tu || !tu.name) return { name: "unknown" };
+  if (tu.name === "delegate") {
+    return { name: "delegate", agent: input.agent, task: traceClip(input.task || "", ctx, 1000) };
+  }
+  if (tu.name === "ask_user") {
+    return { name: "ask_user", question: traceClip(input.question || "", ctx, 1000), options: input.options || [] };
+  }
+  if (tu.name === "use_skill") {
+    return { name: "use_skill", skill: input.skill };
+  }
+  if (tu.name === "write_file") {
+    return {
+      name: "write_file",
+      path: input.path,
+      bytes: Buffer.byteLength(String(input.content == null ? "" : input.content)),
+    };
+  }
+  if (tu.name === "read_file") return { name: "read_file", path: input.path };
+  if (tu.name === "list_files") return { name: "list_files", dir: input.dir || "." };
+  return { name: tu.name };
+}
+
 // ---------------------------------------------------------------------------
 // Live transcript — print each agent's turn to the terminal (stderr) as it
 // happens, the way the Claude CLI shows the assistant talking. On by default;
@@ -348,17 +420,36 @@ function paint(code, s) {
   return CHAT_COLOR ? `\x1b[${code}m${s}\x1b[0m` : s;
 }
 
+// Each agent keeps ONE color for the whole run (Agent Teams-panel feel), so
+// interleaved parallel turns stay attributable at a glance.
+const AGENT_PALETTE = ["36", "33", "32", "35", "34", "96", "93", "92", "95", "94"];
+function agentColor(name) {
+  let h = 0;
+  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return AGENT_PALETTE[h % AGENT_PALETTE.length];
+}
+
+/** One-line team/status message (wave launches, teammate finishes). */
+function chatStatus(ctx, depth, text) {
+  if (ctx.quiet) return;
+  process.stderr.write("  ".repeat(depth) + text + "\n");
+}
+
 function printChat(ctx, persona, depth, resp, cached) {
   if (ctx.quiet) return;
   const pad = "  ".repeat(depth);
+  const col = agentColor(persona.name);
   const tag = cached ? " " + paint("2", "[cached]") : "";
-  process.stderr.write(
-    "\n" + pad + paint("36;1", `● ${persona.name}`) + paint("2", `  (depth ${depth})`) + tag + "\n",
-  );
+  // Build the whole turn and write it ONCE: with parallel teammates, per-line
+  // writes would interleave mid-turn and garble the transcript.
+  const out = [
+    "",
+    pad + paint(col + ";1", `● ${persona.name}`) + paint("2", `  (depth ${depth})`) + tag,
+  ];
 
   const text = textOf(resp.content);
   if (text) {
-    for (const line of text.split("\n")) process.stderr.write(pad + "  " + line + "\n");
+    for (const line of text.split("\n")) out.push(pad + "  " + line);
   }
 
   for (const b of resp.content || []) {
@@ -366,18 +457,44 @@ function printChat(ctx, persona, depth, resp, cached) {
     if (b.name === "delegate") {
       const target = (b.input && b.input.agent) || "?";
       const t = String((b.input && b.input.task) || "").replace(/\s+/g, " ").slice(0, 200);
-      process.stderr.write(pad + "  " + paint("33;1", `→ delegate ${target}`) + `: ${t}\n`);
+      out.push(pad + "  " + paint("33;1", `→ delegate ${target}`) + `: ${t}`);
     } else if (b.name === "ask_user") {
       const q = String((b.input && b.input.question) || "").replace(/\s+/g, " ").slice(0, 200);
-      process.stderr.write(pad + "  " + paint("35;1", "? ask_user") + `: ${q}\n`);
+      out.push(pad + "  " + paint("35;1", "? ask_user") + `: ${q}`);
+    } else if (b.name === "use_skill") {
+      const s = String((b.input && b.input.skill) || "?");
+      out.push(pad + "  " + paint("32;1", `⚡ use_skill ${s}`));
+    } else if (b.name === "write_file") {
+      const p = String((b.input && b.input.path) || "?");
+      const kb = (Buffer.byteLength(String((b.input && b.input.content) || "")) / 1024).toFixed(1);
+      out.push(pad + "  " + paint("36;1", `✎ write_file ${p}`) + paint("2", ` (${kb} KB)`));
+    } else if (b.name === "read_file") {
+      out.push(pad + "  " + paint("2", `⇠ read_file ${String((b.input && b.input.path) || "?")}`));
+    } else if (b.name === "list_files") {
+      out.push(pad + "  " + paint("2", `☰ list_files ${String((b.input && b.input.dir) || ".")}`));
+    } else if (b.name === "edit_file") {
+      out.push(pad + "  " + paint("36;1", `± edit_file ${String((b.input && b.input.path) || "?")}`));
+    } else if (b.name === "search_files") {
+      out.push(pad + "  " + paint("2", `⌕ search_files /${String((b.input && b.input.pattern) || "")}/`));
+    } else if (b.name === "find_files") {
+      out.push(pad + "  " + paint("2", `⌕ find_files ${String((b.input && b.input.pattern) || "")}`));
+    } else if (b.name === "run_command") {
+      const c = String((b.input && b.input.command) || "").replace(/\s+/g, " ").slice(0, 200);
+      out.push(pad + "  " + paint("31;1", `$ run_command`) + ` ${c}`);
+    } else if (b.name === "web_fetch") {
+      out.push(pad + "  " + paint("34;1", `⇣ web_fetch`) + ` ${String((b.input && b.input.url) || "?").slice(0, 200)}`);
+    } else if (b.name === "web_search") {
+      out.push(pad + "  " + paint("34;1", `⌕ web_search`) + ` ${String((b.input && b.input.query) || "?").slice(0, 200)}`);
     }
   }
+  process.stderr.write(out.join("\n") + "\n");
 }
 
 // ---------------------------------------------------------------------------
 // Trace logging
 // ---------------------------------------------------------------------------
 
+// STRUCTURE_KEYWORD: TRACE_LOG - records the run graph and tool activity as project-local JSONL.
 function makeTracer(runId, projectDir) {
   // Trace log lives next to the run's cache + task snapshot in the project's
   // .agent-state, so the whole run (cache, trace, milestone) is in one folder.
@@ -415,6 +532,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * Stored at <projectDir>/.agent-state/orchestrate-<runId>.cache.jsonl so progress
  * lives inside the project (sandbox/<name>), one appended line per delegation.
  */
+// STRUCTURE_KEYWORD: RESUME_CACHE - stores completed model responses for same-run-id replay.
 function makeCache(projectDir, runId) {
   const dir = path.join(projectDir, ".agent-state");
   const file = path.join(dir, `orchestrate-${runId}.cache.jsonl`);
@@ -503,9 +621,43 @@ const DELEGATE_PREAMBLE = [
   "",
   "You may delegate independent sub-tasks to other named project agents using the",
   "`delegate` tool. Delegate when a sub-task is genuinely owned by another agent;",
-  "do the work yourself when it is not. You can issue several `delegate` calls in a",
-  "single turn to fan work out in parallel. Each delegated agent returns a text",
-  "work product. Synthesize their results into your own final answer.",
+  "do the work yourself when it is not. Issue several `delegate` calls in a SINGLE",
+  "turn to fan work out — teammates in the same turn run CONCURRENTLY, like an",
+  "agent team; sequential turns run one at a time. Each delegated agent returns a",
+  "text work product. Synthesize their results into your own final answer.",
+].join("\n");
+
+const SKILL_PREAMBLE = [
+  "",
+  "This repo's skills are available through the `use_skill` tool. When your persona",
+  "says a task is driven by a named skill (e.g. a BMad workflow), call `use_skill`",
+  "with that skill's name FIRST, then follow the loaded instructions. Load only the",
+  "skills you actually need for the assigned task.",
+].join("\n");
+
+const FILE_PREAMBLE = [
+  "",
+  "You have REAL file tools sandboxed to the project directory: `write_file`,",
+  "`read_file`, `list_files`. All paths are relative to the project root; anything",
+  "outside it is refused. When your task is to implement something, WRITE THE",
+  "ACTUAL FILES with `write_file` — complete file contents, never placeholders,",
+  "snippets, or diffs. Do NOT paste full file contents into your final text answer:",
+  "write the files, then summarize what you wrote and list any commands the human",
+  "must run afterwards (installs, builds, dev server).",
+].join("\n");
+
+const COMMAND_PREAMBLE = [
+  "",
+  "You can execute NON-INTERACTIVE shell commands in the project directory with",
+  "`run_command` (installs, builds, tests, scaffolding). Commands are killed after a",
+  "timeout — never start watch/serve/dev-server processes that don't exit, and never",
+  "run commands that expect keyboard input. Prefer flags like --yes / --no-install-hints.",
+].join("\n");
+
+const WEB_PREAMBLE = [
+  "",
+  "`web_search` and `web_fetch` give you live internet access for research.",
+  "Record the source URLs you relied on in your work product.",
 ].join("\n");
 
 /* ONE persistent readline interface, reused for every prompt. Creating a fresh
@@ -648,8 +800,24 @@ function promptWithCountdown(timeoutSecs, ctx) {
  * Fire-and-forget mode: every ask uses a countdown (default 60 s). The user's
  * first keypress stops the clock; if they don't respond, the run auto-proceeds
  * and ctx.userAbsent is set so subsequent asks skip the countdown immediately.
+ *
+ * Parallel teammates could ask at the same time and fight over stdin/the
+ * countdown — a promise-chain mutex on ctx._askLock queues prompts one at a time.
  */
+// STRUCTURE_KEYWORD: USER_PROMPT_LOCK - serializes human prompts from parallel teammates.
 async function askUser(question, options, ctx) {
+  const prev = ctx._askLock || Promise.resolve();
+  let release;
+  ctx._askLock = new Promise((r) => (release = r));
+  await prev;
+  try {
+    return await askUserPrompt(question, options, ctx);
+  } finally {
+    release();
+  }
+}
+
+async function askUserPrompt(question, options, ctx) {
   const hasOpts = Array.isArray(options) && options.length > 0;
   let hash;
   if (ctx.cache) {
@@ -698,6 +866,7 @@ async function askUser(question, options, ctx) {
  * EXTENSION POINT: to give leaf workers real effects, add `read`/`write`/`bash`
  * tool definitions here and execute them in runAgent()'s tool-dispatch loop.
  */
+// STRUCTURE_KEYWORD: TOOL_SURFACE - decides which tools this agent node is allowed to use.
 function buildTools(persona, depth, ctx, targets) {
   const tools = [];
   if (persona.canDelegate && depth < ctx.maxDepth) {
@@ -720,6 +889,157 @@ function buildTools(persona, depth, ctx, targets) {
           },
         },
         required: ["agent", "task"],
+        additionalProperties: false,
+      },
+    });
+  }
+  // Sandboxed file effects — only when the run has a project dir and the persona
+  // declares the matching capability in its frontmatter tools.
+  const fx = ctx.projectDir && !ctx.noEffects;
+  if (fx && persona.tools.includes("Write")) {
+    tools.push({
+      name: "write_file",
+      description:
+        "Write a COMPLETE file inside the project directory (parent folders are " +
+        "created). Paths are relative to the project root; escaping it is refused.",
+      input_schema: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Relative path, e.g. src/index.ts" },
+          content: { type: "string", description: "Full file content (no placeholders or diffs)." },
+        },
+        required: ["path", "content"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("Read")) {
+    tools.push({
+      name: "read_file",
+      description: "Read a file inside the project directory. Path is relative to the project root.",
+      input_schema: {
+        type: "object",
+        properties: { path: { type: "string", description: "Relative path to read." } },
+        required: ["path"],
+        additionalProperties: false,
+      },
+    });
+    tools.push({
+      name: "list_files",
+      description:
+        "List files under a directory inside the project (recursive; node_modules/.git/.agent-state skipped).",
+      input_schema: {
+        type: "object",
+        properties: { dir: { type: "string", description: "Relative directory ('' = project root)." } },
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("Edit")) {
+    tools.push({
+      name: "edit_file",
+      description:
+        "Replace an exact string in a project file. old_string must match exactly and " +
+        "be unique in the file (or set replace_all).",
+      input_schema: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Relative path of the file to edit." },
+          old_string: { type: "string", description: "Exact existing text to replace." },
+          new_string: { type: "string", description: "Replacement text." },
+          replace_all: { type: "boolean", description: "Replace every occurrence (default false)." },
+        },
+        required: ["path", "old_string", "new_string"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("Grep")) {
+    tools.push({
+      name: "search_files",
+      description:
+        "Regex-search file contents under the project (node_modules/.git/.agent-state " +
+        "skipped). Returns matching lines as path:line: text.",
+      input_schema: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "JavaScript regular expression." },
+          dir: { type: "string", description: "Relative directory to search ('' = project root)." },
+        },
+        required: ["pattern"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("Glob")) {
+    tools.push({
+      name: "find_files",
+      description:
+        "Find project files by glob pattern (e.g. src/**/*.ts, *.json). Returns relative paths.",
+      input_schema: {
+        type: "object",
+        properties: { pattern: { type: "string", description: "Glob pattern (* ? ** supported)." } },
+        required: ["pattern"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("Bash")) {
+    tools.push({
+      name: "run_command",
+      description:
+        "Execute a NON-INTERACTIVE shell command in the project directory (installs, builds, " +
+        "tests). Killed after a timeout; returns exit code, stdout, and stderr. Never start " +
+        "watch/serve processes that don't exit.",
+      input_schema: {
+        type: "object",
+        properties: { command: { type: "string", description: "The shell command to run." } },
+        required: ["command"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("WebFetch")) {
+    tools.push({
+      name: "web_fetch",
+      description:
+        "Fetch a public http(s) URL and return its text content (HTML stripped to text, capped).",
+      input_schema: {
+        type: "object",
+        properties: { url: { type: "string", description: "Absolute http(s) URL." } },
+        required: ["url"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (fx && persona.tools.includes("WebSearch")) {
+    tools.push({
+      name: "web_search",
+      description: "Search the live web and return the top results (title, URL, snippet).",
+      input_schema: {
+        type: "object",
+        properties: { query: { type: "string", description: "Search query." } },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    });
+  }
+  if (persona.tools.includes("Skill") && ctx.skills && ctx.skills.size) {
+    tools.push({
+      name: "use_skill",
+      description:
+        "Load one of this repo's skills (.claude/skills/<name>/SKILL.md) and receive " +
+        "its full instructions as the tool result. Follow the loaded skill.",
+      input_schema: {
+        type: "object",
+        properties: {
+          skill: {
+            type: "string",
+            description: "Exact name of the skill to load.",
+            enum: [...ctx.skills.keys()],
+          },
+        },
+        required: ["skill"],
         additionalProperties: false,
       },
     });
@@ -750,10 +1070,419 @@ function buildTools(persona, depth, ctx, targets) {
 }
 
 // ---------------------------------------------------------------------------
+// Teammate pool + skill execution
+// ---------------------------------------------------------------------------
+
+/**
+ * Run fn over items with at most `limit` in flight (the Agent Teams execution
+ * model: a wave of teammates working concurrently). Never rejects — each slot
+ * resolves {ok:true,value} or {ok:false,error} so one teammate's failure cannot
+ * abort its siblings mid-flight; the caller decides what propagates.
+ */
+// STRUCTURE_KEYWORD: TEAMMATE_WAVE - runs same-turn delegated agents with bounded parallelism.
+async function mapPool(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const width = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: width }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      try {
+        out[i] = { ok: true, value: await fn(items[i]) };
+      } catch (e) {
+        out[i] = { ok: false, error: e };
+      }
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+/** Execute a `use_skill` call: return the SKILL.md body (capped) as the result. */
+// STRUCTURE_KEYWORD: SKILL_TOOL - resolves use_skill calls into SKILL.md tool results.
+function runSkill(tu, persona, depth, ctx) {
+  const name = String((tu.input && tu.input.skill) || "");
+  const file = ctx.skills && ctx.skills.get(name);
+  ctx.tracer.log("skill", { agent: persona.name, depth, skill: name, known: !!file });
+  if (!file) {
+    return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: `unknown skill: ${name}` };
+  }
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch (e) {
+    return {
+      type: "tool_result",
+      tool_use_id: tu.id,
+      is_error: true,
+      content: `cannot read skill ${name}: ${e.message}`,
+    };
+  }
+  const cap = int(ctx.skillMaxChars, DEFAULTS.skillMaxChars);
+  if (text.length > cap) text = text.slice(0, cap) + `\n\n[skill truncated at ${cap} chars]`;
+  return { type: "tool_result", tool_use_id: tu.id, content: text };
+}
+
+const FILE_TOOL_NAMES = new Set(["write_file", "read_file", "list_files"]);
+
+/**
+ * Execute a sandboxed file tool call (write_file / read_file / list_files).
+ * Every path is resolved against ctx.projectDir and refused if it escapes it;
+ * writes into .agent-state are refused (that's the orchestrator's own state).
+ * File effects re-execute on cache replay, so a resumed run REBUILDS its files
+ * deterministically from the cached responses.
+ */
+// STRUCTURE_KEYWORD: FILE_SANDBOX - executes read/write/list while keeping paths inside project.
+function runFileTool(tu, persona, depth, ctx) {
+  const err = (msg) => {
+    ctx.tracer.log("fs_refused", { agent: persona.name, depth, tool: tu.name, note: msg });
+    return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: msg };
+  };
+  const root = path.resolve(ctx.projectDir);
+  const relIn = String((tu.input && (tu.input.path !== undefined ? tu.input.path : tu.input.dir)) || "");
+  const abs = path.resolve(root, relIn);
+  const rel = path.relative(root, abs);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    return err(`refused: path escapes the project directory: ${relIn}`);
+  }
+
+  if (tu.name === "write_file") {
+    if (!rel || rel === "." || rel.split(path.sep)[0] === ".agent-state") {
+      return err(`refused: cannot write to ${relIn || "(project root)"} (reserved)`);
+    }
+    const content = String((tu.input && tu.input.content) != null ? tu.input.content : "");
+    try {
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, content);
+    } catch (e) {
+      return err(`write failed for ${rel}: ${e.message}`);
+    }
+    const bytes = Buffer.byteLength(content);
+    ctx.tracer.log("write", { agent: persona.name, depth, path: rel.split(path.sep).join("/"), bytes });
+    return { type: "tool_result", tool_use_id: tu.id, content: `wrote ${rel} (${bytes} bytes)` };
+  }
+
+  if (tu.name === "read_file") {
+    let text;
+    try {
+      text = fs.readFileSync(abs, "utf8");
+    } catch (e) {
+      return err(`cannot read ${rel}: ${e.message}`);
+    }
+    const cap = int(ctx.fileMaxChars, DEFAULTS.fileMaxChars);
+    if (text.length > cap) text = text.slice(0, cap) + `\n\n[file truncated at ${cap} chars]`;
+    ctx.tracer.log("read", { agent: persona.name, depth, path: rel.split(path.sep).join("/") });
+    return { type: "tool_result", tool_use_id: tu.id, content: text };
+  }
+
+  // list_files — bounded recursive listing; orchestrator/vendor dirs skipped.
+  const skipDirs = new Set([".agent-state", "node_modules", ".git"]);
+  const MAX_ENTRIES = 300;
+  const lines = [];
+  const walk = (d, prefix) => {
+    if (lines.length >= MAX_ENTRIES) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (lines.length >= MAX_ENTRIES) {
+        lines.push("[listing truncated at " + MAX_ENTRIES + " entries]");
+        return;
+      }
+      if (skipDirs.has(e.name)) continue;
+      const p = prefix + e.name;
+      if (e.isDirectory()) {
+        lines.push(p + "/");
+        walk(path.join(d, e.name), p + "/");
+      } else {
+        lines.push(p);
+      }
+    }
+  };
+  walk(abs, "");
+  ctx.tracer.log("list", { agent: persona.name, depth, path: rel.split(path.sep).join("/") || "." });
+  return { type: "tool_result", tool_use_id: tu.id, content: lines.join("\n") || "(empty)" };
+}
+
+// Every locally-executed tool (no model call, no delegation). One entry per
+// Claude Code tool the personas declare: Write, Read/Glob, Edit, Grep, Bash,
+// WebFetch, WebSearch — implemented here because the raw API has no tools.
+const LOCAL_TOOL_NAMES = new Set([
+  "write_file", "read_file", "list_files",
+  "edit_file", "search_files", "find_files",
+  "run_command", "web_fetch", "web_search",
+]);
+
+/** Resolve a relative path against the project dir; null if it escapes it. */
+function resolveInProject(ctx, relIn) {
+  const root = path.resolve(ctx.projectDir);
+  const abs = path.resolve(root, String(relIn || ""));
+  const rel = path.relative(root, abs);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  return { root, abs, rel };
+}
+
+const WALK_SKIP = new Set([".agent-state", "node_modules", ".git"]);
+/** Yield {abs, rel} for every file under dir (skips vendor/state dirs). */
+function* walkProject(dir, prefix) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (WALK_SKIP.has(e.name)) continue;
+    const rel = prefix + e.name;
+    if (e.isDirectory()) yield* walkProject(path.join(dir, e.name), rel + "/");
+    else yield { abs: path.join(dir, e.name), rel };
+  }
+}
+
+/** Translate a glob (* ? ** supported) to a RegExp over forward-slash paths. */
+function globToRegExp(glob) {
+  const g = String(glob).replace(/\\/g, "/");
+  let re = "";
+  for (let i = 0; i < g.length; i++) {
+    if (g.slice(i, i + 3) === "**/") {
+      re += "(?:.*/)?";
+      i += 2;
+    } else if (g.slice(i, i + 2) === "**") {
+      re += ".*";
+      i += 1;
+    } else if (g[i] === "*") {
+      re += "[^/]*";
+    } else if (g[i] === "?") {
+      re += "[^/]";
+    } else {
+      re += g[i].replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+  // A bare filename pattern (no slash) matches at any depth, like Claude Code's Glob.
+  const prefix = g.includes("/") ? "" : "(?:.*/)?";
+  return new RegExp("^" + prefix + re + "$", "i");
+}
+
+/** Strip HTML down to readable text (crude but dependency-free). */
+function htmlToText(html) {
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+}
+
+async function webFetchText(url, ctx) {
+  const u = new URL(url);
+  if (!/^https?:$/.test(u.protocol)) throw new Error("only http(s) URLs are allowed");
+  const res = await fetch(u, {
+    redirect: "follow",
+    headers: { "user-agent": "Mozilla/5.0 (orchestrate.cjs research)" },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  let text = await res.text();
+  if (String(res.headers.get("content-type") || "").includes("html")) text = htmlToText(text);
+  const cap = int(ctx.fileMaxChars, DEFAULTS.fileMaxChars);
+  return text.length > cap ? text.slice(0, cap) + "\n[truncated]" : text;
+}
+
+async function webSearchText(query, ctx) {
+  const res = await fetch(
+    "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(query),
+    { headers: { "user-agent": "Mozilla/5.0 (orchestrate.cjs research)" } },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status} from DuckDuckGo`);
+  const html = await res.text();
+  const out = [];
+  const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = linkRe.exec(html)) && out.length < 8) {
+    let href = m[1];
+    const uddg = /[?&]uddg=([^&]+)/.exec(href); // DDG wraps targets in a redirect
+    if (uddg) href = decodeURIComponent(uddg[1]);
+    out.push(`${htmlToText(m[2])}\n${href}`);
+  }
+  if (!out.length) throw new Error("no results parsed (layout change or access blocked)");
+  return out.join("\n\n");
+}
+
+/**
+ * Execute one locally-implemented tool call. File tools are sandboxed to the
+ * project dir. Web results are cached in the run cache ("web:" keys) so a
+ * resume replays them deterministically. run_command output is NOT cached —
+ * on replay the command re-executes, and if its output diverges the run
+ * naturally continues live from that point.
+ */
+async function runLocalTool(tu, persona, depth, ctx) {
+  const err = (msg) => {
+    ctx.tracer.log("fs_refused", { agent: persona.name, depth, tool: tu.name, note: msg });
+    return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: msg };
+  };
+  const ok = (content) => ({ type: "tool_result", tool_use_id: tu.id, content });
+
+  if (tu.name === "write_file" || tu.name === "read_file" || tu.name === "list_files") {
+    return runFileTool(tu, persona, depth, ctx);
+  }
+
+  if (tu.name === "edit_file") {
+    const loc = resolveInProject(ctx, tu.input && tu.input.path);
+    if (!loc || !loc.rel || loc.rel.split(path.sep)[0] === ".agent-state") {
+      return err(`refused: bad edit path: ${String((tu.input && tu.input.path) || "")}`);
+    }
+    let text;
+    try {
+      text = fs.readFileSync(loc.abs, "utf8");
+    } catch (e) {
+      return err(`cannot read ${loc.rel}: ${e.message}`);
+    }
+    const oldS = String((tu.input && tu.input.old_string) != null ? tu.input.old_string : "");
+    const newS = String((tu.input && tu.input.new_string) != null ? tu.input.new_string : "");
+    if (!oldS) return err("edit_file: old_string must be non-empty");
+    const count = text.split(oldS).length - 1;
+    if (count === 0) return err(`edit_file: old_string not found in ${loc.rel}`);
+    const all = (tu.input && tu.input.replace_all) === true;
+    if (count > 1 && !all) {
+      return err(`edit_file: old_string occurs ${count} times in ${loc.rel}; make it unique or set replace_all`);
+    }
+    const idx = text.indexOf(oldS);
+    const updated = all
+      ? text.split(oldS).join(newS)
+      : text.slice(0, idx) + newS + text.slice(idx + oldS.length);
+    fs.writeFileSync(loc.abs, updated);
+    const n = all ? count : 1;
+    ctx.tracer.log("edit", { agent: persona.name, depth, path: loc.rel.split(path.sep).join("/"), replaced: n });
+    return ok(`edited ${loc.rel} (${n} replacement${n === 1 ? "" : "s"})`);
+  }
+
+  if (tu.name === "search_files") {
+    const pattern = String((tu.input && tu.input.pattern) || "");
+    if (!pattern) return err("search_files: pattern required");
+    let re;
+    try {
+      re = new RegExp(pattern, "i");
+    } catch (e) {
+      return err(`search_files: bad regex: ${e.message}`);
+    }
+    const loc = resolveInProject(ctx, (tu.input && tu.input.dir) || "");
+    if (!loc) return err("refused: dir escapes the project directory");
+    const MAX_MATCHES = 100;
+    const found = [];
+    const prefix = loc.rel ? loc.rel.split(path.sep).join("/") + "/" : "";
+    for (const f of walkProject(loc.abs, prefix)) {
+      if (found.length >= MAX_MATCHES) break;
+      let text;
+      try {
+        if (fs.statSync(f.abs).size > 1024 * 1024) continue; // skip big files
+        text = fs.readFileSync(f.abs, "utf8");
+      } catch {
+        continue;
+      }
+      if (text.slice(0, 8000).includes("\0")) continue; // skip binaries
+      const fileLines = text.split(/\r?\n/);
+      for (let ln = 0; ln < fileLines.length && found.length < MAX_MATCHES; ln++) {
+        if (re.test(fileLines[ln])) found.push(`${f.rel}:${ln + 1}: ${fileLines[ln].slice(0, 300)}`);
+      }
+    }
+    if (found.length >= MAX_MATCHES) found.push(`[stopped at ${MAX_MATCHES} matches]`);
+    ctx.tracer.log("search", { agent: persona.name, depth, pattern: pattern.slice(0, 120), matches: found.length });
+    return ok(found.join("\n") || "(no matches)");
+  }
+
+  if (tu.name === "find_files") {
+    const pattern = String((tu.input && tu.input.pattern) || "");
+    if (!pattern) return err("find_files: pattern required");
+    let re;
+    try {
+      re = globToRegExp(pattern);
+    } catch (e) {
+      return err(`find_files: bad glob: ${e.message}`);
+    }
+    const MAX_FILES = 200;
+    const found = [];
+    for (const f of walkProject(path.resolve(ctx.projectDir), "")) {
+      if (found.length >= MAX_FILES) {
+        found.push(`[stopped at ${MAX_FILES} files]`);
+        break;
+      }
+      if (re.test(f.rel)) found.push(f.rel);
+    }
+    ctx.tracer.log("glob", { agent: persona.name, depth, pattern: pattern.slice(0, 120), matches: found.length });
+    return ok(found.join("\n") || "(no matches)");
+  }
+
+  if (tu.name === "run_command") {
+    const cmd = String((tu.input && tu.input.command) || "").trim();
+    if (!cmd) return err("run_command: command required");
+    const timeoutMs = int(ctx.cmdTimeout, DEFAULTS.cmdTimeout) * 1000;
+    ctx.tracer.log("command", { agent: persona.name, depth, command: cmd.slice(0, 300) });
+    const r = spawnSync(cmd, {
+      shell: true,
+      cwd: path.resolve(ctx.projectDir),
+      timeout: timeoutMs,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    const cap = int(ctx.fileMaxChars, DEFAULTS.fileMaxChars);
+    const clip = (s) => {
+      s = String(s || "");
+      return s.length > cap / 2 ? s.slice(0, cap / 2) + "\n[truncated]" : s;
+    };
+    const timedOut = !!(r.error && r.error.code === "ETIMEDOUT");
+    const exit = timedOut ? `TIMEOUT after ${timeoutMs / 1000}s` : String(r.status);
+    ctx.tracer.log("command_result", { agent: persona.name, depth, exit });
+    return {
+      type: "tool_result",
+      tool_use_id: tu.id,
+      is_error: !!(timedOut || r.status !== 0 || (r.error && !timedOut)),
+      content:
+        `exit: ${exit}\n--- stdout ---\n${clip(r.stdout)}\n--- stderr ---\n${clip(r.stderr)}` +
+        (r.error && !timedOut ? `\n--- error ---\n${r.error.message}` : ""),
+    };
+  }
+
+  if (tu.name === "web_fetch" || tu.name === "web_search") {
+    const isSearch = tu.name === "web_search";
+    const input = String((tu.input && (isSearch ? tu.input.query : tu.input.url)) || "").trim();
+    if (!input) return err(`${tu.name}: ${isSearch ? "query" : "url"} required`);
+    ctx.tracer.log(tu.name, { agent: persona.name, depth, [isSearch ? "query" : "url"]: input.slice(0, 300) });
+    // Cache web results in the run cache so a resume replays them deterministically.
+    let hash;
+    if (ctx.cache) {
+      hash = "web:" + crypto.createHash("sha256").update(tu.name + ":" + input).digest("hex");
+      const hit = ctx.cache.get(hash);
+      if (hit !== undefined) return ok(hit);
+    }
+    let content;
+    try {
+      content = isSearch ? await webSearchText(input, ctx) : await webFetchText(input, ctx);
+    } catch (e) {
+      return err(`${tu.name} failed: ${e.message}`);
+    }
+    if (ctx.cache && hash) ctx.cache.put(hash, content);
+    return ok(content);
+  }
+
+  return err(`unknown local tool: ${tu.name}`);
+}
+
+// ---------------------------------------------------------------------------
 // The delegation loop (recursive — THIS is the guaranteed call graph)
 // ---------------------------------------------------------------------------
 
 /** Validate a requested delegation target. Returns {ok} or {ok:false, reason}. */
+// STRUCTURE_KEYWORD: DELEGATION_GUARD - enforces whitelist, fork-safe, no cycles, depth, and budget.
 function validateTarget(target, depth, ancestors, ctx) {
   const persona = ctx.agents.get(target);
   if (!persona)
@@ -766,9 +1495,9 @@ function validateTarget(target, depth, ancestors, ctx) {
   if (ancestors.includes(target))
     return { ok: false, reason: `refused: ${target} is an ancestor (would form a cycle)` };
   if (depth + 1 > ctx.maxDepth)
-    return { ok: false, reason: `refused: max delegation depth (${ctx.maxDepth}) reached` };
+    return { ok: false, reason: `refused: max delegation depth (${ctx.maxDepth}) reached`, limit: "depth" };
   if (ctx.budget.used >= ctx.budget.max)
-    return { ok: false, reason: `refused: delegation budget (${ctx.budget.max}) exhausted` };
+    return { ok: false, reason: `refused: delegation budget (${ctx.budget.max}) exhausted`, limit: "budget" };
   return { ok: true, persona };
 }
 
@@ -776,6 +1505,7 @@ function validateTarget(target, depth, ancestors, ctx) {
  * Run one agent node to completion, recursing on `delegate` calls.
  * @returns {Promise<string>} the agent's final text work product.
  */
+// STRUCTURE_KEYWORD: AGENT_NODE_LOOP - recursive parent/child agent conversation and synthesis loop.
 async function runAgent(persona, task, depth, ancestors, ctx) {
   const targets = [...ctx.agents.values()]
     .filter((p) => p.forkSafe && p.name !== persona.name && !ancestors.includes(p.name))
@@ -784,6 +1514,10 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
   let system = persona.system + "\n" + ORCH_PREAMBLE_BASE;
   const tools = buildTools(persona, depth, ctx, targets);
   if (tools.some((t) => t.name === "delegate")) system += "\n" + DELEGATE_PREAMBLE;
+  if (tools.some((t) => t.name === "use_skill")) system += "\n" + SKILL_PREAMBLE;
+  if (tools.some((t) => FILE_TOOL_NAMES.has(t.name) || t.name === "edit_file")) system += "\n" + FILE_PREAMBLE;
+  if (tools.some((t) => t.name === "run_command")) system += "\n" + COMMAND_PREAMBLE;
+  if (tools.some((t) => t.name === "web_fetch" || t.name === "web_search")) system += "\n" + WEB_PREAMBLE;
   system += "\n" + (ctx.interactive ? ASK_USER_PREAMBLE : ORCH_PREAMBLE_HEADLESS);
 
   const model = resolveModel(persona);
@@ -804,16 +1538,22 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
     // not a fresh live call — mark it so the reprinted history is distinguishable.
     const cached = ctx.cache ? ctx.cache.hits > hitsBefore : false;
     printChat(ctx, persona, depth, resp, cached);
+    const toolUses = (resp.content || []).filter(
+      (b) =>
+        b &&
+        b.type === "tool_use" &&
+        (b.name === "delegate" || b.name === "ask_user" || b.name === "use_skill" ||
+          LOCAL_TOOL_NAMES.has(b.name)),
+    );
     ctx.tracer.log("turn", {
       agent: persona.name,
       depth,
       turn,
       stop: resp.stop_reason,
+      cached,
+      text: traceClip(textOf(resp.content), ctx),
+      toolUses: toolUses.map((tu) => traceToolUse(tu, ctx)),
     });
-
-    const toolUses = (resp.content || []).filter(
-      (b) => b && b.type === "tool_use" && (b.name === "delegate" || b.name === "ask_user"),
-    );
 
     if (resp.stop_reason !== "tool_use" || toolUses.length === 0) {
       return textOf(resp.content) || "(no text output)";
@@ -825,19 +1565,33 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
     // tool_use -> tool_result pairing the API requires.
     messages.push({ role: "assistant", content: toolUses });
 
-    const results = [];
-    for (const tu of toolUses) {
+    // Dispatch this turn's tool calls. ask_user runs inline (the terminal is a
+    // shared resource), use_skill is a local file read, and delegate calls are
+    // collected into a WAVE that runs concurrently — the Agent Teams execution
+    // model: teammates in the same turn work in parallel, each in its own context.
+    const results = new Array(toolUses.length);
+    const wave = [];
+    for (let i = 0; i < toolUses.length; i++) {
+      const tu = toolUses[i];
+      if (tu.name === "use_skill") {
+        results[i] = runSkill(tu, persona, depth, ctx);
+        continue;
+      }
+      if (LOCAL_TOOL_NAMES.has(tu.name)) {
+        results[i] = await runLocalTool(tu, persona, depth, ctx);
+        continue;
+      }
       if (tu.name === "ask_user") {
         if (ctx.askBudget && ctx.askBudget.used >= ctx.askBudget.max) {
           ctx.tracer.log("refused", { from: persona.name, to: "ask_user", depth, note: "ask_user budget exhausted" });
-          results.push({
+          results[i] = {
             type: "tool_result",
             tool_use_id: tu.id,
             is_error: true,
             content:
               `ask_user limit (${ctx.askBudget.max}) reached for this run. Do NOT call ask_user again. ` +
               `Make a reasonable decision yourself and proceed with the actual work.`,
-          });
+          };
           continue;
         }
         if (ctx.askBudget) ctx.askBudget.used += 1;
@@ -851,38 +1605,103 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
           answer = `(ask_user failed: ${e.message})`;
         }
         ctx.tracer.log("ask_user_answer", { agent: persona.name, depth, answer: String(answer).slice(0, 200) });
-        results.push({ type: "tool_result", tool_use_id: tu.id, content: String(answer) });
+        results[i] = { type: "tool_result", tool_use_id: tu.id, content: String(answer) };
         continue;
       }
+      // delegate — validate + charge the budget HERE, synchronously and in tool_use
+      // order, so the whitelist/depth/cycle/budget guarantees are identical whether
+      // the wave then runs sequentially or in parallel.
       const target = tu.input && tu.input.agent;
       const subTask = (tu.input && tu.input.task) || "";
       const v = validateTarget(target, depth, ancestors, ctx);
       if (!v.ok) {
+        // A budget/depth refusal means the run wanted to keep going but hit a
+        // ceiling — the work is INCOMPLETE, not finished. Record it so the run
+        // ends as `blocked` (resumable) instead of a false `done`. Cycle/whitelist
+        // refusals are by-design rejections of a bad target, so they don't set this.
+        if (v.limit) ctx.limitHit = { kind: v.limit, reason: v.reason };
         ctx.tracer.log("refused", { from: persona.name, to: target, depth, note: v.reason });
-        results.push({
+        results[i] = {
           type: "tool_result",
           tool_use_id: tu.id,
           is_error: true,
           content: v.reason,
-        });
+        };
         continue;
       }
-      ctx.budget.used += 1;
+      // Replayed (cache-hit) delegations are a deterministic re-run of work that
+      // already completed on a prior run; charging them against the live budget
+      // would make every resume re-pay for the finished graph and never advance
+      // past the cap. Only genuinely-new (live) delegations count toward it.
+      if (!cached) ctx.budget.used += 1;
       ctx.tracer.log("delegate", { from: persona.name, to: target, depth: depth + 1, task: subTask });
-      let product;
-      try {
-        product = await runAgent(v.persona, subTask, depth + 1, [...ancestors, persona.name], ctx);
-      } catch (e) {
-        ctx.tracer.log("error", { from: persona.name, to: target, depth: depth + 1, note: e.message });
-        // A rate limit is recoverable by resuming — propagate so the run halts
-        // cleanly with the cache intact, rather than poisoning the parent's result
-        // with a fake "failed" work product. Other failures degrade as before.
-        if (e.rateLimited) throw e;
-        product = `delegated agent ${target} failed: ${e.message}`;
-      }
-      ctx.tracer.log("result", { from: target, to: persona.name, depth: depth + 1 });
-      results.push({ type: "tool_result", tool_use_id: tu.id, content: product });
+      wave.push({ i, tu, target, persona: v.persona, task: subTask });
     }
+
+    if (wave.length) {
+      const limit = Math.max(1, Number(ctx.maxParallel) || 1);
+      if (wave.length > 1) {
+        ctx.tracer.log("team_wave", {
+          agent: persona.name,
+          depth,
+          size: wave.length,
+          parallel: Math.min(limit, wave.length),
+          teammates: wave.map((w) => w.target),
+        });
+        chatStatus(
+          ctx,
+          depth,
+          paint("2", `⫸ team: ${wave.length} teammates` +
+            (limit > 1 ? ` (up to ${Math.min(limit, wave.length)} in parallel)` : " (sequential)") +
+            ` — ${wave.map((w) => w.target).join(", ")}`),
+        );
+      }
+      const settled = await mapPool(wave, limit, async (job) => {
+        const product = await runAgent(job.persona, job.task, depth + 1, [...ancestors, persona.name], ctx);
+        if (wave.length > 1) chatStatus(ctx, depth, paint("2", `✓ ${job.target} returned`));
+        return product;
+      });
+      let rateErr = null;
+      for (let k = 0; k < wave.length; k++) {
+        const job = wave[k];
+        const s = settled[k];
+        if (s.ok) {
+          ctx.tracer.log("result", {
+            from: job.target,
+            to: persona.name,
+            depth: depth + 1,
+            toolUseId: job.tu.id,
+            content: traceClip(s.value, ctx),
+          });
+          results[job.i] = { type: "tool_result", tool_use_id: job.tu.id, content: s.value };
+          continue;
+        }
+        ctx.tracer.log("error", { from: persona.name, to: job.target, depth: depth + 1, note: s.error.message });
+        // A rate limit is recoverable by resuming — propagate it AFTER the whole
+        // wave settles, so finished siblings are already in the cache and replay
+        // free on resume, and the parent's result isn't poisoned with a fake
+        // "failed" work product. Other failures degrade as before.
+        if (s.error.rateLimited) {
+          if (!rateErr) rateErr = s.error;
+        } else {
+          results[job.i] = {
+            type: "tool_result",
+            tool_use_id: job.tu.id,
+            content: `delegated agent ${job.target} failed: ${s.error.message}`,
+          };
+        }
+      }
+      if (rateErr) throw rateErr;
+    }
+    ctx.tracer.log("tool_result_batch", {
+      agent: persona.name,
+      depth,
+      results: results.map((r) => ({
+        tool_use_id: r && r.tool_use_id,
+        is_error: !!(r && r.is_error),
+        content: traceClip(r && r.content, ctx, 1000),
+      })),
+    });
     messages.push({ role: "user", content: results });
   }
   return "(stopped: reached per-agent turn limit before finishing)";
@@ -892,6 +1711,7 @@ async function runAgent(persona, task, depth, ancestors, ctx) {
 // Trace rendering
 // ---------------------------------------------------------------------------
 
+// STRUCTURE_KEYWORD: TREE_RENDER - converts delegate trace events into the final delegation tree.
 function renderTree(tracer, rootName) {
   const edges = tracer.events.filter((e) => e.event === "delegate");
   const children = new Map();
@@ -919,6 +1739,7 @@ function renderTree(tracer, rootName) {
 // ---------------------------------------------------------------------------
 
 /** Completed delegations, in order, deduped — derived from `result` trace events. */
+// STRUCTURE_KEYWORD: COMPLETED_WORK - derives finished parent/child handoffs from result events.
 function completedDelegations(tracer) {
   const seen = new Set();
   const out = [];
@@ -932,6 +1753,7 @@ function completedDelegations(tracer) {
   return out;
 }
 
+// STRUCTURE_KEYWORD: RESUME_COMMAND - builds the exact command that continues a halted run.
 function buildResumeCmd({ rootName, taskFile, runId, projectDir, backend }) {
   return (
     `powershell -NoProfile -ExecutionPolicy Bypass -File .claude/scripts/orchestrate.ps1 ` +
@@ -946,6 +1768,7 @@ function buildResumeCmd({ rootName, taskFile, runId, projectDir, backend }) {
  * require-guard, so it cannot be safely required). Status `blocked` on a
  * rate-limit halt, `done` on success. Never throws.
  */
+// STRUCTURE_KEYWORD: MILESTONE_HANDOFF - saves blocked/done status for the next session.
 function saveMilestone({ status, projectDir, rootName, task, runId, backend, tracer, resumeCmd, cacheFile, traceFile, errorMessage }) {
   const milestoneScript = path.join(__dirname, "milestone.cjs");
   if (!fs.existsSync(milestoneScript)) {
@@ -956,7 +1779,7 @@ function saveMilestone({ status, projectDir, rootName, task, runId, backend, tra
   const next =
     status === "blocked"
       ? [
-          "Re-run with the SAME --run-id to resume — completed delegations replay from cache (no re-spend); the rate-limited call runs live.",
+          "Re-run with the SAME --run-id to resume — completed delegations replay from cache (no re-spend); the run continues live at the exact point it stopped (the rate-limited or budget-capped call).",
           resumeCmd,
         ]
       : ["Run complete. Work product was printed to stdout; full trace in the log file."];
@@ -1080,6 +1903,39 @@ async function probe() {
   console.log("\nPASS — the proxy round-trips a 2-turn tool exchange. Delegation loop is viable.");
 }
 
+// Build fresh per-attempt state. This is intentionally separate from main()
+// because auto-resume must behave like a manual re-run with the same run-id:
+// reload cache from disk, reset live counters, and replay to the frontier.
+// STRUCTURE_KEYWORD: AUTO_RESUME_ATTEMPT - creates a clean retry context after a rate-limit reset.
+function makeAttemptContext(opts) {
+  return {
+    agents: opts.agents,
+    skills: opts.skills,
+    projectDir: opts.projectDir,
+    noEffects: opts.noEffects,
+    fileMaxChars: opts.fileMaxChars,
+    cmdTimeout: opts.cmdTimeout,
+    tracer: makeTracer(opts.runId, opts.projectDir),
+    cache: makeCache(opts.projectDir, opts.runId),
+    interactive: opts.interactive,
+    budget: { used: 0, max: opts.maxDelegations },
+    askBudget: { used: 0, max: opts.maxAsks },
+    maxDepth: opts.maxDepth,
+    maxTurns: opts.maxTurns,
+    maxTokens: opts.maxTokens,
+    maxRetries: opts.maxRetries,
+    maxParallel: opts.maxParallel,
+    skillMaxChars: opts.skillMaxChars,
+    traceTextChars: opts.traceTextChars,
+    askTimeout: opts.askTimeout,
+    autoResume: opts.autoResume,
+    resumeDelay: opts.resumeDelay,
+    userAbsent: false,
+    quiet: opts.quiet,
+  };
+}
+
+// STRUCTURE_KEYWORD: CLI_ENTRYPOINT - parses flags, creates run context, starts the root agent.
 async function main() {
   if (arg("--help", false) || process.argv.length <= 2) {
     console.log(
@@ -1095,6 +1951,13 @@ async function main() {
         "  --no-interactive             disable ask_user prompts (headless; for CI/piped runs)",
         "  --ask-timeout N              seconds to wait before auto-proceeding on agent questions (default 60)",
         "                               type any key within N seconds to stop the clock and answer",
+        "  --max-parallel N             concurrent teammates per delegation wave (default 4; Agent Teams-style)",
+        "  --no-parallel                run delegations strictly one at a time (same as --max-parallel 1)",
+        "  --skill-max-chars N          cap on a SKILL.md body returned by use_skill (default 12000)",
+        "  --no-effects                 disable ALL local tools (file/edit/search/command/web) — text only",
+        "  --file-max-chars N           cap on read_file / run_command / web results (default 24000)",
+        "  --cmd-timeout N              seconds before run_command is killed (default 120)",
+        "  --trace-text-chars N         cap on saved text snippets in trace JSONL (default 2000)",
         "  --max-depth N --max-delegations N --max-turns N --max-tokens N --max-retries N --max-asks N",
         "  --run-id <id>                trace/cache id. Re-run with the SAME id to RESUME",
         "                               a rate-limited run: completed delegations replay",
@@ -1145,34 +2008,43 @@ async function main() {
   // Interactive when attached to a terminal (so agents can ask_user). Force off
   // with --no-interactive for CI / piped runs, where agents proceed autonomously.
   const interactive = !!process.stdin.isTTY && arg("--no-interactive", false) !== true;
-  const tracer = makeTracer(runId, projectDir);
-  const cache = makeCache(projectDir, runId);
-  const ctx = {
+  const skills = loadSkills();
+  const runOptions = {
     agents,
-    tracer,
-    cache,
+    skills,
+    runId,
+    projectDir,
+    noEffects: arg("--no-effects", false) === true,
+    fileMaxChars: int(arg("--file-max-chars"), DEFAULTS.fileMaxChars),
+    cmdTimeout: int(arg("--cmd-timeout"), DEFAULTS.cmdTimeout),
     interactive,
-    budget: { used: 0, max: int(arg("--max-delegations"), DEFAULTS.maxDelegations) },
-    askBudget: { used: 0, max: int(arg("--max-asks"), DEFAULTS.maxAsks) },
+    maxDelegations: int(arg("--max-delegations"), DEFAULTS.maxDelegations),
+    maxAsks: int(arg("--max-asks"), DEFAULTS.maxAsks),
     maxDepth: int(arg("--max-depth"), DEFAULTS.maxDepth),
     maxTurns: int(arg("--max-turns"), DEFAULTS.maxTurns),
     maxTokens: int(arg("--max-tokens"), DEFAULTS.maxTokens),
     maxRetries: int(arg("--max-retries"), DEFAULTS.maxRetries),
+    maxParallel: arg("--no-parallel", false) === true ? 1 : int(arg("--max-parallel"), DEFAULTS.maxParallel),
+    skillMaxChars: int(arg("--skill-max-chars"), DEFAULTS.skillMaxChars),
+    traceTextChars: int(arg("--trace-text-chars"), DEFAULTS.traceTextChars),
     askTimeout: int(arg("--ask-timeout"), DEFAULTS.askTimeout),
     autoResume: arg("--auto-resume", false) === true,
     resumeDelay: int(arg("--resume-delay"), DEFAULTS.resumeDelay),
-    userAbsent: false, // set true after first timeout; cleared when user types
     quiet: arg("--quiet", false) === true, // suppress the live agent transcript
   };
+  let ctx = makeAttemptContext(runOptions);
   const resumeCmd = buildResumeCmd({ rootName, taskFile: taskSnapshot, runId, projectDir, backend: backendArg });
 
   console.log(
     `Running ${rootName} (depth<=${ctx.maxDepth}, <=${ctx.budget.max} delegations, run-id ${runId}).\n` +
-      `  project: ${projectDir}\n  trace:   ${path.relative(REPO_ROOT, tracer.file)}\n` +
+      `  project: ${projectDir}\n  trace:   ${path.relative(REPO_ROOT, ctx.tracer.file)}\n` +
+      `  team:    up to ${ctx.maxParallel} teammate(s) in parallel per delegation wave (--max-parallel)\n` +
+      `  skills:  ${skills.size} loadable via use_skill (shown as ⚡ in the transcript)\n` +
+      `  effects: ${ctx.noEffects ? "OFF (--no-effects) — agents return text only" : `full local toolset per persona frontmatter (file/edit/search/glob sandboxed to ${projectDir}; run_command cwd there, ${ctx.cmdTimeout}s timeout; web via live fetch)`}\n` +
       `  input:   ${interactive ? `interactive — agents ask via ask_user (${ctx.askTimeout}s timeout; type to stop clock)` : "headless — no prompts"}` +
       (ctx.autoResume ? `\n  auto-resume: on rate-limit wait ~${Math.round(ctx.resumeDelay / 60)}m then retry (Ctrl+C to abort)` : "") +
       `\n  transcript: ${ctx.quiet ? "off (--quiet)" : "on — live agent chat prints below (stderr); --quiet to hide"}` +
-      (cache.restored ? `\n  resume:  replaying ${cache.restored} cached response(s) from a prior run` : "") +
+      (ctx.cache.restored ? `\n  resume:  replaying ${ctx.cache.restored} cached response(s) from a prior run` : "") +
       "\n",
   );
 
@@ -1183,13 +2055,12 @@ async function main() {
       product = await runAgent(root, task, 0, [], ctx);
       break;
     } catch (e) {
-      const { total } = renderTree(tracer, rootName);
+      const { total } = renderTree(ctx.tracer, rootName);
 
       if (e.rateLimited && ctx.autoResume) {
         resumeAttempt += 1;
-        // Use the server's Retry-After if it's a meaningful long wait; else use configured delay.
-        const waitSecs =
-          e.retryAfterSecs && e.retryAfterSecs > 120 ? e.retryAfterSecs : ctx.resumeDelay;
+        // Use the server's reset delay when present; otherwise fall back to the configured wait.
+        const waitSecs = e.retryAfterSecs || ctx.resumeDelay;
         saveMilestone({
           status: "blocked",
           projectDir,
@@ -1197,15 +2068,15 @@ async function main() {
           task,
           runId,
           backend: backendArg,
-          tracer,
+          tracer: ctx.tracer,
           resumeCmd,
-          cacheFile: cache.file,
-          traceFile: tracer.file,
+          cacheFile: ctx.cache.file,
+          traceFile: ctx.tracer.file,
           errorMessage: e.message,
         });
         process.stderr.write(
           `\n=== RATE LIMITED (attempt ${resumeAttempt}) ===\n${e.message}\n` +
-            `${cache.live} live call(s); ${total} delegation(s) cached.\n` +
+            `${ctx.cache.live} live call(s); ${total} delegation(s) cached.\n` +
             `Auto-resuming in ~${Math.round(waitSecs / 60)}m — Ctrl+C to abort.\n` +
             `(all completed work is cached and will replay instantly on the next attempt)\n\n`,
         );
@@ -1217,7 +2088,11 @@ async function main() {
         }, 30000);
         await sleep(waitSecs * 1000);
         clearInterval(tick);
-        process.stderr.write(`\r⏳ Resuming now (attempt ${resumeAttempt + 1})...        \n\n`);
+        ctx = makeAttemptContext(runOptions);
+        process.stderr.write(
+          `\r⏳ Resuming now (attempt ${resumeAttempt + 1}); ` +
+            `reloaded ${ctx.cache.restored} cached response(s)...        \n\n`,
+        );
         continue;
       }
 
@@ -1230,14 +2105,14 @@ async function main() {
           task,
           runId,
           backend: backendArg,
-          tracer,
+          tracer: ctx.tracer,
           resumeCmd,
-          cacheFile: cache.file,
-          traceFile: tracer.file,
+          cacheFile: ctx.cache.file,
+          traceFile: ctx.tracer.file,
           errorMessage: e.message,
         });
         console.error(
-          `\nRate-limited after ${cache.live} live call(s); ${total} delegation(s) checkpointed to the cache.\n` +
+          `\nRate-limited after ${ctx.cache.live} live call(s); ${total} delegation(s) checkpointed to the cache.\n` +
             `Resume (replays cached work, continues at the rate-limited agent):\n  ${resumeCmd}`,
         );
       }
@@ -1246,7 +2121,7 @@ async function main() {
     }
   }
 
-  const { tree, total, counts } = renderTree(tracer, rootName);
+  const { tree, total, counts } = renderTree(ctx.tracer, rootName);
   console.log("\n=== DELEGATION TREE ===\n" + tree);
   console.log(`\ntotal delegations: ${total} / budget ${ctx.budget.max}`);
   if (total)
@@ -1255,19 +2130,37 @@ async function main() {
         Object.entries(counts).map(([k, v]) => `${k}×${v}`).join("  "),
     );
   console.log(
-    `cache: ${cache.restored} restored, ${cache.hits} replayed, ${cache.live} live call(s) -> ${cache.file}`,
+    `cache: ${ctx.cache.restored} restored, ${ctx.cache.hits} replayed, ${ctx.cache.live} live call(s) -> ${ctx.cache.file}`,
   );
+  // The root agent can return normally (end_turn) even though a delegation it
+  // wanted to make was refused for hitting the budget/depth ceiling — leaving the
+  // plan cut off mid-flight. That is NOT a completed run: mark it `blocked` so the
+  // SessionStart hook keeps surfacing it and the milestone says how to continue.
+  const limitHit = ctx.limitHit;
+  if (limitHit) {
+    console.error(
+      `\n=== RUN INCOMPLETE ===\n${limitHit.reason}\n` +
+        (limitHit.kind === "budget"
+          ? `The delegation graph is larger than the budget (${ctx.budget.max}). Re-run with the SAME ` +
+            `--run-id to continue past the cap (completed work replays from cache for free), or pass a ` +
+            `bigger --max-delegations N to go further in one run.`
+          : `An agent hit the depth cap (${ctx.maxDepth}). Re-run with the SAME --run-id and a bigger ` +
+            `--max-depth N to let it delegate deeper.`) +
+        `\nResume:\n  ${resumeCmd}`,
+    );
+  }
   saveMilestone({
-    status: "done",
+    status: limitHit ? "blocked" : "done",
     projectDir,
     rootName,
     task,
     runId,
     backend: backendArg,
-    tracer,
+    tracer: ctx.tracer,
     resumeCmd,
-    cacheFile: cache.file,
-    traceFile: tracer.file,
+    cacheFile: ctx.cache.file,
+    traceFile: ctx.tracer.file,
+    errorMessage: limitHit ? limitHit.reason : undefined,
   });
   console.log("\n=== WORK PRODUCT (" + rootName + ") ===\n" + product);
 }
@@ -1275,11 +2168,15 @@ async function main() {
 module.exports = {
   parsePersona,
   loadAgents,
+  loadSkills,
+  retryAfterSeconds,
   resolveModel,
   callModel,
   runAgent,
+  mapPool,
   makeCache,
   makeTracer,
+  makeAttemptContext,
   saveMilestone,
   completedDelegations,
   buildResumeCmd,
